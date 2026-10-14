@@ -5,7 +5,8 @@ Public portfolio project; synthetic or public data only.
 
 ## Status
 
-M0 foundations are under verification. See [the build plan](docs/BUILD_PLAN.md).
+M0 foundations are implemented and verified locally. See [the build plan](docs/BUILD_PLAN.md)
+and [verification results](docs/m0-verification.md).
 Asset generation, database tables, and trained models belong to later milestones.
 
 ## Architecture

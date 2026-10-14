@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl';
+import { Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { blankMapStyle } from './mapStyle';
+
+setWorkerUrl(workerUrl);
 
 export function Map() {
   const container = useRef<HTMLDivElement>(null);
@@ -19,8 +22,12 @@ export function Map() {
       });
       map.addControl(new NavigationControl(), 'top-right');
       map.on('load', () => setStatus('Map ready · asset data arrives in M1'));
-      map.on('error', () => setStatus('Map could not load. Check browser WebGL support.'));
-    } catch {
+      map.on('error', (event) => {
+        console.error('MapLibre error:', event.error);
+        setStatus('Map could not load. Check browser WebGL support.');
+      });
+    } catch (error) {
+      console.error('MapLibre initialization failed:', error);
       setStatus('Map could not load. Check browser WebGL support.');
     }
     return () => map?.remove();
