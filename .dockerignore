@@ -3,6 +3,10 @@
 !backend/**
 !data/
 !data/**
+!ml/
+!ml/**
+ml/artifacts/**
+!ml/artifacts/.gitkeep
 backend/.venv/
 **/__pycache__/
 **/.pytest_cache/
