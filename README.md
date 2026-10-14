@@ -15,6 +15,10 @@ See [M2 verification](docs/m2-verification.md) and [the model card](docs/model-c
 M3 asset/outage GeoJSON, risk scoring/aggregation/hotspots, and model information
 are implemented and verified locally. See [M3 verification](docs/m3-verification.md)
 and [the API contract](docs/api.md) for filters, pagination, scoring policy, and errors.
+M4 risk map, filters, summary cards, hotspots, transformer ranking, and asset
+explanations/history are implemented and verified locally. See
+[M4 verification](docs/m4-verification.md), including the real-browser acceptance
+check and review choices. M5 is awaiting approval.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -49,7 +53,7 @@ In PowerShell, use `Copy-Item .env.example .env` instead of `cp` if preferred.
 Change the local database password placeholder in `.env`; never commit this file.
 The database stays on the Compose network; API and web ports bind to loopback only.
 
-Open http://localhost:5173 for the blank MapLibre map. No tiles, tokens, or network
+Open http://localhost:5173 for the risk explorer. No tiles, tokens, or network
 map service are needed. A WebGL-capable browser is required. API docs:
 http://localhost:8000/docs; liveness: http://localhost:8000/health.
 `make up` waits for all three services to become healthy.
@@ -80,7 +84,22 @@ Retraining appends versions; it does not replace earlier artifacts or rescore as
 After a process crash between file publication and database registration, an
 unregistered artifact directory may remain; database records identify registered runs.
 API health currently measures process liveness; Compose checks database readiness
-separately. The web container runs the Vite development server for M0.
+separately. The web container currently runs the Vite development server.
+
+Click **Top 10 transformers**, then select a ranked asset or a map point to see
+its signed SHAP factors and paginated outage history. Type, band, and minimum-risk
+filters operate together; **Reset filters** restores the full fleet. Summary
+cards and hotspot centres always describe the whole fleet. Hotspot links are
+500 metres; connected groups can span more than 500 metres, and marker halos are
+not distance boundaries. The map uses a local background without street tiles.
+The accessible asset list remains usable if WebGL is unavailable.
+
+Scores are historical 30-day predictions at the displayed cutoff, not today's
+forecast. The default corpus uses 2026-01-01 UTC. Band thresholds are synthetic
+demo choices. SHAP factors describe uncalibrated model log-odds, not additive
+changes to calibrated probability or causal effects. **Refresh network** reads
+the API; it does not rescore. The dashboard checks batch consistency across all
+pages and preserves the previous snapshot if a refresh fails.
 
 GitHub Actions installs locked dependencies, runs lint/types, backend and frontend
 tests (including real isolated PostGIS integration tests), builds the frontend,

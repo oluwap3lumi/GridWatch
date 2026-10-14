@@ -76,3 +76,8 @@ and rejects a batch that changes during loading. Filters and top-ten transformer
 ranking operate on that complete cached snapshot. MapLibre renders local GeoJSON
 with no remote tiles or tokens; an accessible ranked list also supports selection.
 Summary cards and hotspot centres describe the whole fleet, independent of filters.
+Asset selection displays the same snapshot's signed TreeSHAP factors immediately;
+the detail query loads ten outage events per page and rejects a different scoring
+stamp. Query functions consume AbortSignals, so changing selection cancels obsolete
+requests. Error and empty states distinguish missing data, unscored assets, and
+failed loads. The ranked list provides a keyboard-accessible path without WebGL.

@@ -4,6 +4,7 @@ import { useFleet } from '../api/hooks';
 import { Filters } from '../components/Filters';
 import { RiskLegend } from '../components/RiskLegend';
 import { SummaryCards } from '../components/SummaryCards';
+import { AssetPanel } from '../components/AssetPanel';
 import { date, defaultFilters, rankedAssets, RiskBadge } from '../components/risk';
 import type { FilterState } from '../components/risk';
 export function Dashboard() {
@@ -25,12 +26,13 @@ export function Dashboard() {
       <SummaryCards fleet={fleet.data} />
       <div className="snapshot-note">{fleet.data.summary.scoring ? <>Prediction cutoff <strong>{fleet.data.summary.scoring.prediction_cutoff ? date(fleet.data.summary.scoring.prediction_cutoff) : 'Unknown'} UTC</strong> · 30-day horizon · Scored {date(fleet.data.summary.scoring.scored_at)} UTC</> : 'Assets have not been scored. Train and rescore through the API to explore risk.'}<span>Demo thresholds · No operational guidance</span></div>
       <Filters value={filters} onChange={changeFilters} topTen={topTen} onTopTen={() => { setFilters({ ...defaultFilters, type: 'transformer' }); setTopTen(true); setSelectedId(null); }} reset={() => changeFilters(defaultFilters)} hotspots={showHotspots} onHotspots={setShowHotspots} />
-      <div className="workspace"><div className="map-column"><Map assets={assets} hotspots={showHotspots ? fleet.data.hotspots : []} selected={selected} onSelect={setSelectedId} /><RiskLegend /><p className="map-help">Points: transformers & poles · Lines: feeders · Halos: connected hotspot centres, not distance boundaries. Hotspots describe the whole fleet.</p></div>
+      <div className="workspace"><div className="map-column">
+        {selected && <AssetPanel key={selected.id} asset={selected} stamp={fleet.data.summary.scoring} close={() => setSelectedId(null)} refresh={() => void fleet.refetch()} />}
+        <Map assets={assets} hotspots={showHotspots ? fleet.data.hotspots : []} selected={selected} onSelect={setSelectedId} /><RiskLegend /><p className="map-help">Points: transformers & poles · Lines: feeders · Halos: connected hotspot centres, not distance boundaries. Hotspots describe the whole fleet.</p></div>
         <section className="asset-list" aria-label="Ranked assets"><div className="list-heading"><p className="eyebrow">Priority queue</p><h2>{topTen ? 'Top 10 transformers' : 'Assets by risk'}</h2><p>{assets.length.toLocaleString()} {topTen ? 'scored transformers' : 'matching assets'} · Highest risk first</p></div>
           {!assets.length && <div className="empty-state"><strong>{topTen ? 'No scored transformers' : 'No matching assets'}</strong><p>{topTen ? 'This network needs scores before it can be ranked.' : 'Try another band or lower the risk threshold.'}</p><button onClick={() => changeFilters(defaultFilters)}>Reset filters</button></div>}
           <ol>{assets.slice(0, visibleCount).map((asset, index) => <li key={asset.id}><button className={`asset-row ${selectedId === asset.id ? 'selected' : ''}`} aria-pressed={selectedId === asset.id} onClick={() => setSelectedId(asset.id)}><span className="rank">{String(index + 1).padStart(2, '0')}</span><span><strong>{asset.properties.type} #{asset.id}</strong><small>{asset.properties.feeder_id ? `Feeder #${asset.properties.feeder_id}` : 'Feeder asset'}</small></span><RiskBadge asset={asset} /></button></li>)}</ol>
           {assets.length > visibleCount && <button className="load-more" onClick={() => setVisibleCount((value) => value + 20)}>Show 20 more</button>}
-          {selected && <div className="selection-preview" role="status">Selected {selected.properties.type} #{selected.id}. Asset explanations arrive in the next M4 slice.</div>}
         </section>
       </div>
       {!fleet.data.assets.length && <p role="status">No network assets yet. Run make seed to load the synthetic corpus.</p>}

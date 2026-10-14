@@ -6,7 +6,7 @@ export function fixtureAsset(id: number, score: number | null, kind: AssetFeatur
     type: kind, feeder_id: 1, install_date: '2000-01-01', capacity_kva: 100, load_factor: 0.8,
     material: 'steel', vegetation_index: 0.5, last_maintenance_date: '2025-01-01', risk: score === null ? null : {
       ...stamp, score, band: score >= 0.1 ? 'critical' : score >= 0.08 ? 'high' : score >= 0.05 ? 'medium' : 'low',
-      top_factors: [{ feature: 'load_stress', feature_value: 0.64, contribution: 0.4, contribution_unit: 'log_odds' },
+      top_factors: [{ feature: 'load_stress', feature_value: 0.05, contribution: 0.4, contribution_unit: 'log_odds' },
         { feature: 'asset_age_years', feature_value: 26, contribution: -0.2, contribution_unit: 'log_odds' }] } } };
 }
 export const fleetFixture: FleetSnapshot = {

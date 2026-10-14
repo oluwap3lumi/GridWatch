@@ -8,7 +8,7 @@ export class SnapshotChangedError extends Error {
   constructor() { super('The network changed while loading. Refresh to load a consistent snapshot.'); }
 }
 
-export async function get<K extends keyof ApiOperations>(
+export async function get<K extends Extract<keyof ApiOperations, `GET ${string}`>>(
   operation: K,
   path: ApiOperations[K]['path'],
   query: ApiOperations[K]['query'],
