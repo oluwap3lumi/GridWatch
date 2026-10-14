@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gridwatch-lint
+        name: GridWatch lint and type checks
+        entry: python scripts/tasks.py lint
+        language: system
+        pass_filenames: false
+        always_run: true

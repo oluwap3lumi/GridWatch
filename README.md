@@ -46,5 +46,9 @@ http://localhost:8000/docs; liveness: http://localhost:8000/health.
 API health currently measures process liveness; Compose checks database readiness
 separately. The web container runs the Vite development server for M0.
 
+GitHub Actions installs locked dependencies, runs lint/types, backend and frontend
+tests, builds the frontend, checks generated-type drift, and boots the full stack
+for HTTP and PostGIS smoke checks. Local hooks run the same lint/type target.
+
 If ports are occupied, change `API_PORT` / `WEB_PORT` in `.env`. For `make smoke`,
 export the same overrides in your shell (`$env:API_PORT = '8001'` in PowerShell).
