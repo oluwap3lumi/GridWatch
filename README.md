@@ -12,8 +12,9 @@ locally. See [M1 verification](docs/m1-verification.md).
 M2 temporal features, calibrated logistic regression and CPU XGBoost, SHAP
 explanations, and a versioned model registry are implemented and verified locally.
 See [M2 verification](docs/m2-verification.md) and [the model card](docs/model-card.md).
-M3 adds asset/outage GeoJSON, risk scoring/aggregation/hotspots, and model information.
-See [the API contract](docs/api.md) for filters, pagination, scoring policy, and errors.
+M3 asset/outage GeoJSON, risk scoring/aggregation/hotspots, and model information
+are implemented and verified locally. See [M3 verification](docs/m3-verification.md)
+and [the API contract](docs/api.md) for filters, pagination, scoring policy, and errors.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -85,7 +86,8 @@ GitHub Actions installs locked dependencies, runs lint/types, backend and fronte
 tests (including real isolated PostGIS integration tests), builds the frontend,
 checks generated-type drift, and boots/seeds the full stack for HTTP and PostGIS
 smoke checks. It trains twice and checks reproducibility. Local hooks run the same
-lint/type target. CI workflow execution itself has not been verified remotely.
+lint/type target. The smoke check calls every endpoint and performs actual rescoring.
+CI workflow execution itself has not been verified remotely.
 
 If ports are occupied, change `API_PORT` / `WEB_PORT` in `.env`. For `make smoke`,
 export the same overrides in your shell (`$env:API_PORT = '8001'` in PowerShell).
