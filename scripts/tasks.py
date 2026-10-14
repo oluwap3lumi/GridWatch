@@ -1,6 +1,7 @@
 """Portable Make command runner; all subprocess failures stop the task."""
 
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -80,9 +81,17 @@ def main() -> None:
                 "pytest",
                 "-c",
                 "backend/pyproject.toml",
-                "backend/tests",
+                "backend/tests/unit",
             )
+            os.environ["TEST_POSTGRES_PASSWORD"] = secrets.token_urlsafe(24)
+            try:
+                run("docker", "compose", "--profile", "test", "up", "--detach", "--wait", "test-db")
+                run("docker", "compose", "--profile", "test", "run", "--rm", "--build", "test-api")
+            finally:
+                run("docker", "compose", "--profile", "test", "rm", "--stop", "--force", "test-db")
             run(npm, "--prefix", "frontend", "test")
+        case "migrate":
+            run("docker", "compose", "exec", "-T", "api", "alembic", "upgrade", "head")
         case "build":
             run(npm, "--prefix", "frontend", "run", "build")
         case "smoke":

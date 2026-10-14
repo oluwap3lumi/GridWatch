@@ -27,6 +27,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
       - run: make setup
+      - name: Configure local synthetic stack
+        run: cp .env.example .env
       - run: make lint
       - run: make test
       - run: make build
@@ -36,8 +38,8 @@ jobs:
           git diff --exit-code -- frontend/src/api/generated.ts
       - name: Stack smoke test
         run: |
-          cp .env.example .env
           make up
+          make migrate
           make smoke
       - name: Stack diagnostics on failure
         if: failure()

@@ -13,7 +13,10 @@ services:
       timeout: 5s
       retries: 20
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: runtime
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -30,6 +33,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  test-db:
+    profiles: ["test"]
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_USER: gridwatch_test
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-test-only-placeholder}
+      POSTGRES_DB: gridwatch_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  test-api:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    environment:
+      POSTGRES_USER: gridwatch_test
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-test-only-placeholder}
+      POSTGRES_DB: gridwatch_test
+      POSTGRES_HOST: test-db
+      POSTGRES_PORT: "5432"
+      GRIDWATCH_INTEGRATION: "1"
+    depends_on:
+      test-db:
+        condition: service_healthy
   web:
     build: ./frontend
     ports:

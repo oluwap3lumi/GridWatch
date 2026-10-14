@@ -9,6 +9,11 @@ M0 foundations are implemented and verified locally. See [the build plan](docs/B
 and [verification results](docs/m0-verification.md).
 Asset generation, database tables, and trained models belong to later milestones.
 
+M1 database schema is under implementation. `make migrate` applies Alembic
+migrations to the running API's database. `make test` now includes a separate
+ephemeral PostGIS container; it uses a generated password, exposes no host database
+port, and removes the test container after the run. Docker must be running.
+
 ## Architecture
 
 Python 3.12 / FastAPI, PostgreSQL 16 / PostGIS 3, React / Vite / TypeScript,

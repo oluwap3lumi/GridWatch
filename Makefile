@@ -4,6 +4,6 @@ else
 PYTHON ?= python3
 endif
 
-.PHONY: setup up down lint test build smoke seed train types hooks
-setup up down lint test build smoke seed train types hooks:
+.PHONY: setup up down lint test build smoke seed train types hooks migrate
+setup up down lint test build smoke seed train types hooks migrate:
 	$(PYTHON) scripts/tasks.py $@
