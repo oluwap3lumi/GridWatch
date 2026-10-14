@@ -1,6 +1,6 @@
 # Model card
 
-M2 is under implementation. The prediction target is at least one outage in the
+The prediction target is at least one outage in the
 30 days beginning at a monthly UTC cutoff. Features use only strictly earlier
 events and weather, with at least 365 days of available history before a cutoff.
 Training, tuning, probability calibration, and final validation are chronological;
@@ -42,3 +42,24 @@ The selected XGBoost has depth 1 and 100 trees; the baseline uses C=0.1.
 Exact TreeSHAP contributions explain the uncalibrated XGBoost log-odds, not
 additive changes to calibrated probabilities. Global importance uses 512
 deterministically spaced validation rows.
+
+`make train` stores each fitted bundle (both calibrated estimators and raw XGBoost)
+with metrics, reliability bins, SHAP importance, feature schema/configuration,
+locked dependency versions, source Git SHA, UTC timestamp, and the SHA-256 of all
+persisted source rows including geometry. `model_runs` records the same provenance
+and numerical metrics. Registration takes the seed loader's advisory lock and
+rechecks the data hash; a changed corpus rejects registration and removes the new
+artifacts. Earlier versions are preserved. Files are checksummed before reload.
+`make verify-train` compares two same-data, same-revision runs and their reloaded
+validation predictions. Exact bitwise reproducibility is tested within the same
+locked CPU environment; results can differ across package versions/platforms.
+
+Limitations: correlated asset-month rows, just two holdout months, no confidence
+intervals, sparse outages, synthetic and largely additive daily failure rules,
+static load/vegetation values, and no future weather forecast. Historical outage
+locations include the scored asset's own previous outages. Weather is assigned
+from the closest available station to the asset's feeder midpoint. Missing weather
+uses zeros plus coverage count; nearest-outage distances use a spherical rather
+than spheroidal approximation. TreeSHAP describes associations, not causal effects.
+No protected/customer attributes or real utility records are used. M3 will add
+asset scoring and API delivery; this milestone does not write `risk_scores`.

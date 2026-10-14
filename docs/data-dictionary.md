@@ -16,7 +16,7 @@ Asset IDs, observation IDs, and outage IDs are deterministic generator-assigned 
 | `model_runs` | id, unique model_version, trained_at (UTC), data_hash (SHA-256), features (JSONB string list), metrics (JSONB), git_sha |
 
 M1 creates the model/risk tables for the planned schema, but leaves them empty.
-Training and scoring belong to M2/M3. Foreign keys and database constraints reject
+M2 populates `model_runs`; asset scoring remains M3 work. Foreign keys and database constraints reject
 invalid geometry, asset parentage, date ordering, and physical-value ranges.
 
 The generator defaults to seed 42, 3,000 assets (20 feeders, 700 transformers,
@@ -42,3 +42,13 @@ with UTC timestamps. They identify different representations, so they need not
 match each other. Each is stable across identical reloads. Reseeding replaces only
 assets/weather/outages in one transaction and refuses to invalidate existing
 model runs or risk scores. The model/risk tables remain empty in M1 demo loads.
+
+M2 `model_runs.data_hash` is the persisted `database_hash`, not the generator's
+canonical JSON hash. `metrics` has numeric keys prefixed `baseline_`, `xgboost_`,
+and `raw_xgboost_`, plus `pr_auc_lift` and integer `quality_gate_passed` (0/1).
+PR-AUC is average precision; precision at top-k uses ceil(5% of validation
+asset-month rows). Calibration error uses ten equal-width probability bins.
+`features` records the exact ordered feature contract and `git_sha` identifies
+the committed training source. Files under `ml/artifacts/<model_version>/`
+contain dependency/configuration metadata and detailed evaluation reports.
+See [the model card](model-card.md) for target windows, feature limitations, and results.

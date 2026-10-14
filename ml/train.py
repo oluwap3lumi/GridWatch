@@ -1,5 +1,6 @@
 """Deterministic CPU fitting and temporal comparison, without DB or file access."""
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Protocol, cast
 
@@ -119,6 +120,7 @@ def fit_models(frame: pd.DataFrame, config: TrainingConfig) -> TrainingResult:
         **{f"raw_xgboost_{key}": value for key, value in raw_metrics.items()},
         "pr_auc_lift": float(xgb_metrics["pr_auc"]) - float(baseline_metrics["pr_auc"]),
     }
+    metrics["quality_gate_passed"] = int(metrics["pr_auc_lift"] > 0)
     report: dict[str, object] = {
         "selected_parameters": {"baseline_C": baseline_c, "xgboost": xgb_params},
         "tuning_pr_auc": {"baseline": baseline_score, "xgboost": xgb_score},
@@ -144,6 +146,7 @@ def fit_models(frame: pd.DataFrame, config: TrainingConfig) -> TrainingResult:
         },
         "shap": shap_summary(xgboost, validation_x),
         "quality_gate_passed": metrics["pr_auc_lift"] > 0,
+        "validation_prediction_hash": hashlib.sha256(xgb_probs.astype("<f8").tobytes()).hexdigest(),
     }
     return TrainingResult(
         ModelBundle(

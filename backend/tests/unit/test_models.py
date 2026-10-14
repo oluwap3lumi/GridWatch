@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,13 @@ from ml.predict import predict_probabilities
 from ml.split import temporal_split
 from ml.train import TrainingConfig, fit_models
 from xgboost import DMatrix
+
+from app.services.artifacts import (
+    load_artifacts,
+    remove_unregistered_artifacts,
+    save_artifacts,
+    version_path,
+)
 
 
 def synthetic_frame() -> pd.DataFrame:
@@ -47,7 +55,7 @@ def test_metrics_and_invalid_probabilities() -> None:
         probability_metrics(labels, np.array([0.1, np.nan, 0.2, 0.9]))
 
 
-def test_training_reproducibility_shap_and_prediction_contract() -> None:
+def test_training_reproducibility_shap_and_prediction_contract(tmp_path: Path) -> None:
     frame = synthetic_frame()
     first = fit_models(frame, TrainingConfig())
     second = fit_models(frame, TrainingConfig())
@@ -70,3 +78,17 @@ def test_training_reproducibility_shap_and_prediction_contract() -> None:
         predict_probabilities(replace(first.bundle, feature_schema="future"), validation)
     with pytest.raises(ValueError, match="Missing"):
         predict_probabilities(first.bundle, validation.drop(columns=[FEATURE_COLUMNS[0]]))
+    path = save_artifacts(tmp_path, "test-run", first, {"synthetic_data_only": True})
+    np.testing.assert_array_equal(
+        probabilities, predict_probabilities(load_artifacts(tmp_path, "test-run"), validation)
+    )
+    with pytest.raises(FileExistsError):
+        save_artifacts(tmp_path, "test-run", second, {})
+    (path / "metrics.json").write_text("{}")
+    with pytest.raises(ValueError, match="checksum"):
+        load_artifacts(tmp_path, "test-run")
+    save_artifacts(tmp_path, "unregistered", second, {})
+    remove_unregistered_artifacts(tmp_path, "unregistered")
+    assert path.exists() and not (tmp_path / "unregistered").exists()
+    with pytest.raises(ValueError, match="Invalid"):
+        version_path(tmp_path, "../escape")

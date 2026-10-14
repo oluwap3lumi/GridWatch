@@ -104,7 +104,45 @@ def main() -> None:
         case "hooks":
             run("uv", "run", "--project", "backend", "pre-commit", "install")
         case "train":
-            raise SystemExit("train is not implemented until M2; see docs/BUILD_PLAN.md.")
+            git = shutil.which("git")
+            if git is None:
+                raise SystemExit("Git is required to record the training source revision")
+            dirty = subprocess.check_output(
+                [git, "status", "--porcelain", "--", "backend", "ml", "data", "scripts"],
+                cwd=ROOT,
+                text=True,
+            )
+            if dirty.strip():
+                raise SystemExit(
+                    "Commit training code before make train so its Git SHA is accurate"
+                )
+            git_sha = subprocess.check_output(
+                [git, "rev-parse", "HEAD"], cwd=ROOT, text=True
+            ).strip()
+            run(
+                "docker",
+                "compose",
+                "run",
+                "--rm",
+                "--build",
+                "-e",
+                f"TRAIN_GIT_SHA={git_sha}",
+                "api",
+                "python",
+                "-m",
+                "app.services.train",
+            )
+        case "verify-train":
+            run(
+                "docker",
+                "compose",
+                "run",
+                "--rm",
+                "api",
+                "python",
+                "-m",
+                "app.services.verify_training",
+            )
         case _:
             raise SystemExit(f"Unknown task: {target}")
 

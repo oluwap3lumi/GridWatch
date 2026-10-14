@@ -93,7 +93,7 @@ class WeatherObservation(Base):
 
 
 class ModelRun(Base):
-    """Model registry records; M1 creates the table but does not train models."""
+    """Immutable provenance and evaluation metrics for each versioned model run."""
 
     __tablename__ = "model_runs"
     __table_args__ = (

@@ -41,6 +41,9 @@ jobs:
           make up
           make migrate
           make seed
+          make train
+          make train
+          make verify-train
           make smoke
       - name: Stack diagnostics on failure
         if: failure()
