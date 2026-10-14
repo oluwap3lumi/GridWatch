@@ -35,3 +35,10 @@ Each component uses an independent local seeded PRNG. Canonical JSON includes th
 configuration, ordered records, rounded finite values, and ISO dates/timestamps.
 SHA-256 identifies that complete corpus. Reproducibility targets the pinned Python
 3.12 runtime. No wall clock, external network, or real-world records are inputs.
+
+`make seed` prints `data_hash` for canonical generated records/configuration and
+`database_hash` for every persisted row (including geometry) in stable ID order
+with UTC timestamps. They identify different representations, so they need not
+match each other. Each is stable across identical reloads. Reseeding replaces only
+assets/weather/outages in one transaction and refuses to invalidate existing
+model runs or risk scores. The model/risk tables remain empty in M1 demo loads.

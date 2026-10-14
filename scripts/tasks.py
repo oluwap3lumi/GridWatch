@@ -92,6 +92,9 @@ def main() -> None:
             run(npm, "--prefix", "frontend", "test")
         case "migrate":
             run("docker", "compose", "exec", "-T", "api", "alembic", "upgrade", "head")
+        case "seed":
+            run("docker", "compose", "exec", "-T", "api", "alembic", "upgrade", "head")
+            run("docker", "compose", "exec", "-T", "api", "python", "-m", "app.services.seed")
         case "build":
             run(npm, "--prefix", "frontend", "run", "build")
         case "smoke":
@@ -100,11 +103,8 @@ def main() -> None:
             run("uv", "run", "--project", "backend", "python", "scripts/export_types.py")
         case "hooks":
             run("uv", "run", "--project", "backend", "pre-commit", "install")
-        case "seed" | "train":
-            milestone = "M1" if target == "seed" else "M2"
-            raise SystemExit(
-                f"{target} is not implemented until {milestone}; see docs/BUILD_PLAN.md."
-            )
+        case "train":
+            raise SystemExit("train is not implemented until M2; see docs/BUILD_PLAN.md.")
         case _:
             raise SystemExit(f"Unknown task: {target}")
 

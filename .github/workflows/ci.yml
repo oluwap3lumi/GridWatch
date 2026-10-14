@@ -40,6 +40,7 @@ jobs:
         run: |
           make up
           make migrate
+          make seed
           make smoke
       - name: Stack diagnostics on failure
         if: failure()

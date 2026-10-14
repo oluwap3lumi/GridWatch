@@ -9,4 +9,9 @@ The initial MapLibre map uses a local background style and requires no external 
 Vite bundles MapLibre's worker explicitly as an ES module, so its URL works in both
 development and production builds. This uses MapLibre's
 [worker URL configuration](https://maplibre.org/maplibre-gl-js/docs/API/functions/setWorkerUrl/).
-Synthetic generation, persistence, features, and scoring follow in later milestones.
+M1 generates an invented network, weather, and correlated outages entirely in
+`data/generator`. The seed service passes that immutable corpus to a repository;
+the repository serializes concurrent seeds with a transaction-level advisory lock,
+replaces demo rows atomically, and verifies loaded counts and a database fingerprint.
+Database DDL is applied only by Alembic. Integration tests use a separate ephemeral
+PostGIS database. Feature engineering, trained models, and scoring remain M2/M3 work.

@@ -7,10 +7,10 @@ Public portfolio project; synthetic or public data only.
 
 M0 foundations are implemented and verified locally. See [the build plan](docs/BUILD_PLAN.md)
 and [verification results](docs/m0-verification.md).
-Asset generation, database tables, and trained models belong to later milestones.
-
-M1 database schema is under implementation. `make migrate` applies Alembic
-migrations to the running API's database. `make test` now includes a separate
+M1 database schema, synthetic generation, and loading are implemented and verified
+locally. See [M1 verification](docs/m1-verification.md). Trained models belong to M2.
+`make migrate` applies Alembic migrations to the running API's database.
+`make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
 port, and removes the test container after the run. Docker must be running.
 
@@ -31,6 +31,7 @@ after installing tools.
 cp .env.example .env
 make setup
 make up
+make seed
 make smoke
 make lint
 make test
@@ -48,13 +49,21 @@ http://localhost:8000/docs; liveness: http://localhost:8000/health.
 `make types` regenerates the M0 health TypeScript contract from OpenAPI.
 `make build` checks the frontend production build. `make hooks` installs Git hooks.
 `make down` stops the stack and preserves database data.
-`make seed` and `make train` deliberately fail with milestone guidance until M1/M2.
+`make seed` migrates and atomically replaces synthetic assets, weather, and outages.
+It refuses to reseed a database that contains model runs or risk scores. The default
+corpus contains 3,000 assets and two years of daily synthetic weather ending on
+2025-12-31: 20 feeders, 700 transformers, 2,280 poles, 14,600 weather observations,
+and 4,608 outages. Counts and source/database SHA-256 hashes are printed after a successful
+load; repeating the same configuration produces the same data and hashes.
+Generator overrides are listed in `.env.example`; run `make up` after changing them.
+`make train` remains an explicit M2 placeholder.
 API health currently measures process liveness; Compose checks database readiness
 separately. The web container runs the Vite development server for M0.
 
 GitHub Actions installs locked dependencies, runs lint/types, backend and frontend
-tests, builds the frontend, checks generated-type drift, and boots the full stack
-for HTTP and PostGIS smoke checks. Local hooks run the same lint/type target.
+tests (including real isolated PostGIS integration tests), builds the frontend,
+checks generated-type drift, and boots/seeds the full stack for HTTP and PostGIS
+smoke checks. Local hooks run the same lint/type target.
 
 If ports are occupied, change `API_PORT` / `WEB_PORT` in `.env`. For `make smoke`,
 export the same overrides in your shell (`$env:API_PORT = '8001'` in PowerShell).
