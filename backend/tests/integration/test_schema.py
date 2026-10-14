@@ -57,7 +57,7 @@ def test_schema_and_spatial_indexes(engine: Engine) -> None:
     }
     with engine.connect() as connection:
         version = connection.scalar(text("SELECT version_num FROM alembic_version"))
-        assert version == "0001"
+        assert version == "0002"
         indexes = connection.execute(
             text("SELECT tablename, indexdef FROM pg_indexes WHERE schemaname = 'public'")
         ).all()

@@ -111,7 +111,7 @@ class ModelRun(Base):
 
 
 class RiskScore(Base):
-    """Latest score per asset; model training and scoring arrive in M2/M3."""
+    """Latest scored prediction per asset, with its historical cutoff and explanations."""
 
     __tablename__ = "risk_scores"
     __table_args__ = (
@@ -127,4 +127,5 @@ class RiskScore(Base):
     band: Mapped[str] = mapped_column(String(10))
     model_version: Mapped[str] = mapped_column(ForeignKey("model_runs.model_version"))
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    prediction_cutoff: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     top_factors: Mapped[list[dict[str, str | float]]] = mapped_column(JSONB)
