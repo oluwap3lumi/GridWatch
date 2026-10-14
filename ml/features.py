@@ -138,7 +138,7 @@ def build_features(inputs: TrainingInputs, cutoff: datetime, config: FeatureConf
                 "wind_mean_30d": sum(wind) / len(wind) if wind else 0,
                 "wind_max_30d": max(wind, default=0),
                 "lightning_mean_30d": sum(lightning) / len(lightning) if lightning else 0,
-                "weather_days_30d": len({w.observed_at.date() for w in weather}),
+                "weather_days_30d": len({utc(w.observed_at).date() for w in weather}),
                 "nearest_prior_outage_m": float(nearest[index]),
                 "prior_outage_available": int(bool(past)),
             }

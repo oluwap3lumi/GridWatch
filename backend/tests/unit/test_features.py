@@ -1,7 +1,7 @@
 """Boundary and leakage tests use tiny synthetic histories, never utility data."""
 
 from dataclasses import replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -56,6 +56,18 @@ def test_window_left_boundary_and_missing_history_are_explicit() -> None:
     assert empty.iloc[0]["prior_outage_available"] == 0
     assert empty.iloc[0]["weather_days_30d"] == 0
     assert np.isfinite(empty.loc[:, list(FEATURE_COLUMNS)].to_numpy(dtype=float)).all()
+
+
+def test_weather_coverage_counts_utc_days() -> None:
+    original = inputs()
+    same_instant = replace(
+        original.weather[0],
+        observed_at=original.weather[0].observed_at.astimezone(timezone(timedelta(hours=-2))),
+    )
+    frame = build_features(
+        replace(original, weather=(*original.weather, same_instant)), CUTOFF, FeatureConfig()
+    )
+    assert frame.iloc[0]["weather_days_30d"] == 1
 
 
 def test_distance_units_and_not_yet_installed_assets() -> None:
