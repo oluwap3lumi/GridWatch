@@ -69,3 +69,10 @@ function groups those edges deterministically; PostGIS calculates geography
 centroids and aggregate scores. Integration tests exercise every endpoint, real
 scoring, rollback, competing requests, corpus/model changes during prediction,
 and invalid artifacts. The stack smoke command performs actual HTTP rescoring.
+
+The M4 dashboard uses generated OpenAPI contracts and TanStack Query. It loads all
+asset and hotspot pages before showing a ranking, checks scoring stamps and totals,
+and rejects a batch that changes during loading. Filters and top-ten transformer
+ranking operate on that complete cached snapshot. MapLibre renders local GeoJSON
+with no remote tiles or tokens; an accessible ranked list also supports selection.
+Summary cards and hotspot centres describe the whole fleet, independent of filters.

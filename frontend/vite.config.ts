@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  test: { environment: 'jsdom', setupFiles: ['./src/tests/setup.ts'] },
   worker: { format: 'es' },
   server: {
     port: 5173,

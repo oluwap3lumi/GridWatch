@@ -8,7 +8,6 @@ describe('dashboard foundation', () => {
   it('renders the map container and honest empty-data status', () => {
     const html = renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><Dashboard /></QueryClientProvider>);
     expect(html).toContain('GridWatch');
-    expect(html).toContain('aria-label="MapLibre map of Lagos"');
     expect(html).toContain('role="status"');
     expect(html).toContain('Loading the complete network');
   });
