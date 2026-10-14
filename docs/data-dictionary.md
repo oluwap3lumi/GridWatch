@@ -18,3 +18,20 @@ Asset IDs, observation IDs, and outage IDs are deterministic generator-assigned 
 M1 creates the model/risk tables for the planned schema, but leaves them empty.
 Training and scoring belong to M2/M3. Foreign keys and database constraints reject
 invalid geometry, asset parentage, date ordering, and physical-value ranges.
+
+The generator defaults to seed 42, 3,000 assets (20 feeders, 700 transformers,
+2,280 poles), and 730 daily scenarios ending on 2025-12-31. This creates 14,600
+weather records at invented feeder stations inside a Lagos-area bounding box
+(3.25, 6.42, 3.55, 6.65). Coordinates describe an invented network, not real assets.
+`WeatherRecord.feeder_id` is internal station identity and is not a database field.
+
+Asset points cluster along generated feeder lines. Age and vegetation correlate;
+outage probability increases with age, load stress, vegetation, rainfall, wind,
+and lightning. Daily storms are shared regionally with local variation. These are
+designed demonstration signals, not validated physical models or utility forecasts.
+Poles have zero capacity; their load factor is a synthetic feeder-utilization proxy.
+
+Each component uses an independent local seeded PRNG. Canonical JSON includes the
+configuration, ordered records, rounded finite values, and ISO dates/timestamps.
+SHA-256 identifies that complete corpus. Reproducibility targets the pinned Python
+3.12 runtime. No wall clock, external network, or real-world records are inputs.
