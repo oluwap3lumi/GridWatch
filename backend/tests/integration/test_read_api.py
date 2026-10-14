@@ -146,6 +146,8 @@ def test_invalid_query_returns_422(path: str, query: dict[str, str | int | float
 
 @pytest.mark.usefixtures("api_data")
 def test_no_model_and_unscored_http_states() -> None:
+    assert request("/api/v1/health") == (200, {"status": "ok"})
+    assert request("/health") == (200, {"status": "ok"})
     assert request("/api/v1/model")[0] == 404
     status, summary = request("/api/v1/risk/summary")
     assert status == 200
