@@ -1,0 +1,29 @@
+{
+  "name": "gridwatch-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.14.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}
