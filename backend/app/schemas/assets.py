@@ -4,8 +4,9 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, FiniteFloat
+from pydantic import Field, FiniteFloat
 
+from app.schemas.base import ApiModel
 from app.schemas.spatial import AssetGeometry, PointGeometry
 
 
@@ -22,14 +23,14 @@ class RiskBand(StrEnum):
     critical = "critical"
 
 
-class RiskFactor(BaseModel):
+class RiskFactor(ApiModel):
     feature: str
     feature_value: FiniteFloat
     contribution: FiniteFloat
     contribution_unit: Literal["log_odds"] = "log_odds"
 
 
-class RiskSnapshot(BaseModel):
+class RiskSnapshot(ApiModel):
     score: FiniteFloat = Field(ge=0, le=1)
     band: RiskBand
     model_version: str
@@ -39,7 +40,7 @@ class RiskSnapshot(BaseModel):
     top_factors: list[RiskFactor]
 
 
-class AssetProperties(BaseModel):
+class AssetProperties(ApiModel):
     type: AssetKind
     feeder_id: int | None
     install_date: date
@@ -51,50 +52,50 @@ class AssetProperties(BaseModel):
     risk: RiskSnapshot | None
 
 
-class AssetFeature(BaseModel):
+class AssetFeature(ApiModel):
     type: Literal["Feature"] = "Feature"
     id: int
     geometry: AssetGeometry
     properties: AssetProperties
 
 
-class PageMetadata(BaseModel):
+class PageMetadata(ApiModel):
     total: int = Field(ge=0)
     limit: int = Field(ge=1)
     offset: int = Field(ge=0)
     next_offset: int | None
 
 
-class AssetCollection(BaseModel):
+class AssetCollection(ApiModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[AssetFeature]
     pagination: PageMetadata
 
 
-class OutageProperties(BaseModel):
+class OutageProperties(ApiModel):
     asset_id: int
     started_at: datetime
     duration_min: FiniteFloat
     cause: str
 
 
-class OutageFeature(BaseModel):
+class OutageFeature(ApiModel):
     type: Literal["Feature"] = "Feature"
     id: int
     geometry: PointGeometry
     properties: OutageProperties
 
 
-class OutageCollection(BaseModel):
+class OutageCollection(ApiModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[OutageFeature]
     pagination: PageMetadata
 
 
-class AssetDetail(BaseModel):
+class AssetDetail(ApiModel):
     asset: AssetFeature
     outages: OutageCollection
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(ApiModel):
     detail: str

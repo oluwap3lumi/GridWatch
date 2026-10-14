@@ -1,7 +1,9 @@
 """Lazy connection dependencies; read requests use a consistent read-only snapshot."""
 
+import os
 from collections.abc import Iterator
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
@@ -24,3 +26,11 @@ def get_session(engine: Annotated[Engine, Depends(get_engine)]) -> Iterator[Sess
 
 
 type ReadSession = Annotated[Session, Depends(get_session)]
+
+
+def get_artifact_root() -> Path:
+    return Path(os.environ.get("MODEL_ARTIFACT_DIR", "/app/ml/artifacts"))
+
+
+type ArtifactRoot = Annotated[Path, Depends(get_artifact_root)]
+type DatabaseEngine = Annotated[Engine, Depends(get_engine)]

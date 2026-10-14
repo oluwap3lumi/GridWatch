@@ -4,15 +4,17 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
+from app.schemas.base import ApiModel
+
 type Position = tuple[FiniteFloat, FiniteFloat]
 
 
-class PointGeometry(BaseModel):
+class PointGeometry(ApiModel):
     type: Literal["Point"] = "Point"
     coordinates: Position
 
 
-class LineGeometry(BaseModel):
+class LineGeometry(ApiModel):
     type: Literal["LineString"] = "LineString"
     coordinates: list[Position] = Field(min_length=2)
 

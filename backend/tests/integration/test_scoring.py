@@ -16,16 +16,21 @@ from sqlalchemy import Engine, delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_artifact_root, get_engine
 from app.core.errors import ModelUnavailable, ScoringConflict
 from app.db.models import Asset, ModelRun, OutageEvent, RiskScore, WeatherObservation
+from app.main import app
 from app.repositories.model_runs import register_run
 from app.repositories.risk import risk_summary, scoring_lock
 from app.repositories.seed import replace_demo_data
 from app.repositories.training import read_training_inputs
+from app.schemas.assets import AssetCollection, AssetDetail
+from app.schemas.risk import HotspotCollection, ModelInfo, RescoreResponse, RiskSummary
 from app.services.artifacts import save_artifacts
 from app.services.risk_policy import risk_band
 from app.services.scoring import rescore
 from app.services.train import dependency_versions
+from tests.integration.test_read_api import request
 
 
 @pytest.fixture(scope="module")
@@ -77,9 +82,14 @@ def trained_registry(engine: Engine, tmp_path_factory: pytest.TempPathFactory) -
 def scoring_data(trained_registry: Path, engine: Engine) -> Iterator[Path]:
     with Session(engine) as session, session.begin():
         session.execute(delete(RiskScore))
-    yield trained_registry
-    with Session(engine) as session, session.begin():
-        session.execute(delete(RiskScore))
+    app.dependency_overrides[get_engine] = lambda: engine
+    app.dependency_overrides[get_artifact_root] = lambda: trained_registry
+    try:
+        yield trained_registry
+    finally:
+        app.dependency_overrides.clear()
+        with Session(engine) as session, session.begin():
+            session.execute(delete(RiskScore))
 
 
 def snapshot(engine: Engine) -> list[tuple[object, ...]]:
@@ -240,3 +250,72 @@ def test_newer_passing_model_during_prediction_is_rejected(
     finally:
         with Session(engine) as session, session.begin():
             session.execute(delete(ModelRun).where(ModelRun.model_version == "newer-passing"))
+
+
+def test_risk_and_model_http_contracts(scoring_data: Path, engine: Engine) -> None:
+    status, payload = request("/api/v1/model")
+    assert status == 200
+    model = ModelInfo.model_validate(payload)
+    assert model.model_version == "test-scoring" and model.scored_model_version is None
+    assert len(model.feature_importance) == 16
+    assert [item.mean_absolute_contribution for item in model.feature_importance] == sorted(
+        (item.mean_absolute_contribution for item in model.feature_importance), reverse=True
+    )
+    status, payload = request("/api/v1/risk/rescore", method="POST")
+    assert status == 200
+    result = RescoreResponse.model_validate(payload)
+    status, payload = request("/api/v1/risk/summary")
+    summary = RiskSummary.model_validate(payload)
+    assert status == 200 and summary.scored_assets == 3000
+    assert summary.counts_by_band == result.counts_by_band
+    assert summary.scoring is not None and summary.scoring.model_version == model.model_version
+    _, payload = request("/api/v1/assets", {"band": "critical", "min_risk": 0.10, "limit": 500})
+    assets = AssetCollection.model_validate(payload)
+    assert assets.pagination.total == result.counts_by_band.critical
+    assert all(
+        feature.properties.risk is not None and feature.properties.risk.score >= 0.10
+        for feature in assets.features
+    )
+    _, payload = request("/api/v1/assets/21")
+    detail = AssetDetail.model_validate(payload)
+    assert detail.asset.properties.risk is not None
+    assert detail.asset.properties.risk.prediction_cutoff == result.prediction_cutoff
+    status, payload = request("/api/v1/risk/hotspots", {"limit": 500})
+    clusters = HotspotCollection.model_validate(payload)
+    assert status == 200 and clusters.radius_m == 500
+    assert clusters.features
+    assert all(feature.properties.asset_count >= 3 for feature in clusters.features)
+    assert request("/api/v1/risk/hotspots", {"bbox": "0,0,1,1"})[1]["features"] == []
+    assert request("/api/v1/risk/hotspots", {"limit": 501})[0] == 422
+    assert request("/api/v1/model")[1]["scored_model_version"] == "test-scoring"
+    with scoring_lock(engine):
+        assert request("/api/v1/risk/rescore", method="POST")[0] == 409
+
+
+def test_http_corrupt_registry_and_failed_newest_model(scoring_data: Path, engine: Engine) -> None:
+    with Session(engine) as session, session.begin():
+        run = session.scalar(select(ModelRun).where(ModelRun.model_version == "test-scoring"))
+        assert run is not None
+        session.add(
+            ModelRun(
+                model_version="newer-failed",
+                trained_at=datetime.now(UTC),
+                data_hash=run.data_hash,
+                features=run.features,
+                git_sha="c" * 40,
+                metrics={"quality_gate_passed": 0, "pr_auc_lift": -0.001},
+            )
+        )
+    try:
+        assert request("/api/v1/model")[1]["model_version"] == "test-scoring"
+        metadata = scoring_data / "test-scoring" / "metadata.json"
+        original = metadata.read_bytes()
+        try:
+            metadata.write_text("{}")
+            assert request("/api/v1/model")[0] == 503
+            assert request("/api/v1/risk/rescore", method="POST")[0] == 503
+        finally:
+            metadata.write_bytes(original)
+    finally:
+        with Session(engine) as session, session.begin():
+            session.execute(delete(ModelRun).where(ModelRun.model_version == "newer-failed"))

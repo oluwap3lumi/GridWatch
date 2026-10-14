@@ -39,4 +39,33 @@ lock and reject changed source data. Database rows identify registered versions;
 there is no mutable file pointer to race with concurrent training. Normal failed
 registration cleans up its newly written version. A crash can leave an orphan
 directory but cannot advertise a partially staged artifact through `model_runs`.
-Asset rescoring and serving model information remain M3 work.
+
+M3 read routes use a repeatable-read, read-only session and return typed Pydantic
+responses. Repositories own SQL, spatial filtering, aggregation, and GeoJSON
+conversion. `make types` exports schemas and operation contracts directly from
+OpenAPI for the frontend. Geometry remains EPSG:4326.
+
+```mermaid
+flowchart LR
+  POST[POST /risk/rescore] --> Lock[Dedicated scoring advisory lock]
+  Lock --> Snapshot[Repository snapshot + latest passing model]
+  Snapshot --> Verified[Verify artifact checksums and registered provenance]
+  Verified --> Score[Pure historical features, probability, TreeSHAP]
+  Score --> Tx[Corpus lock + recheck hash/version + atomic replacement]
+  Tx --> Risks[(risk_scores)]
+  Risks --> Reads[Summary, geography hotspots, asset detail]
+  Reads --> API[Typed v1 responses and generated client contracts]
+```
+
+Scoring uses the next UTC day after the last weather observation rather than the
+wall clock; `prediction_cutoff` and actual `scored_at` are stored separately.
+SHAP and XGBoost load when scoring is requested, keeping health/startup and
+read routes independent of model deserialization. The latest passing model is
+looked up each time. A newer trained model does not automatically overwrite an
+earlier score batch; `/model` reports both available and scored versions.
+
+Hotspot edges use `ST_DWithin` on geography at 500 metres. A pure connected-component
+function groups those edges deterministically; PostGIS calculates geography
+centroids and aggregate scores. Integration tests exercise every endpoint, real
+scoring, rollback, competing requests, corpus/model changes during prediction,
+and invalid artifacts. The stack smoke command performs actual HTTP rescoring.

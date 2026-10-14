@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from app.schemas.base import ApiModel
 
 
-class HealthResponse(BaseModel):
+class HealthResponse(ApiModel):
     """API process liveness; database readiness is checked by Compose."""
 
     status: Literal["ok"] = "ok"

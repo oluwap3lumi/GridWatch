@@ -31,8 +31,7 @@ Malformed filters return FastAPI's typed 422 validation response.
 
 ## Approved M3 scoring policy
 
-The scoring service and aggregate repositories implement the policy below;
-risk/model HTTP routes are the next implementation slice.
+The scoring service, aggregate repositories, and HTTP routes implement the policy below.
 Predictions use a 30-day horizon beginning at the next UTC day after the latest
 weather observation: 2026-01-01 for the default demo corpus. `scored_at` records
 the actual scoring time; migration `0002` adds `prediction_cutoff` separately.
@@ -69,3 +68,39 @@ assets connected by two 500-metre edges form one group even when the endpoints
 are farther apart. Smaller groups are excluded. Feeders use their line midpoint
 for distance, matching the ML feature location; cluster centres use PostGIS
 geography centroids. A bbox filters original asset geometries before clustering.
+
+## Risk and model routes
+
+- `GET /risk/summary`: fleet and feeder totals, scored/unscored counts, band
+  counts, and current scoring stamp (null until scored).
+- `GET /risk/hotspots`: paginated GeoJSON cluster centres with member asset IDs,
+  mean/maximum probability, and band counts. Accepts `bbox`, `limit`, and `offset`.
+  No scores or no qualifying clusters returns an empty collection.
+- `POST /risk/rescore`: no request body; synchronously computes and atomically
+  saves a complete batch. The response reports the model, cutoff, actual scoring
+  time, scored/unscored counts, and band totals.
+- `GET /model`: latest passing available model, validation metrics, feature list,
+  sorted mean absolute TreeSHAP importance, provenance, and `scored_model_version`.
+  That last value is null before scoring and may lag the available model after
+  retraining. Models are looked up per request; retraining does not require a restart.
+
+Errors: `GET /model` returns 404 when no passing model exists. Rescoring returns
+409 for missing prerequisites, concurrent work, changed source data, or a newer
+passing model registered during computation. Invalid/missing registered artifacts
+return 503 for both model information and rescoring. Mixed legacy scoring batches
+return 409 from summary/model until rescoring restores a single batch.
+
+For the existing trained stack in PowerShell:
+
+```powershell
+make up
+make migrate
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/risk/rescore
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/risk/summary
+Invoke-RestMethod -Uri 'http://localhost:8000/api/v1/assets?type=transformer&band=critical&limit=10'
+make smoke
+```
+
+`make smoke` now requires seeded data and a passing trained model. It calls every
+endpoint, including actual rescoring, and verifies typed responses, summaries,
+model/scored version consistency, frontend proxy/entry point, and PostGIS.

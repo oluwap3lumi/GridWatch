@@ -27,3 +27,39 @@ def test_generated_contracts_cover_geojson_and_nullable_risk() -> None:
     )
     with pytest.raises(ValueError, match="Unsupported"):
         render_type({"type": "made-up"})
+
+
+def test_openapi_paths_references_and_serialized_defaults() -> None:
+    document = app.openapi()
+    assert set(document["paths"]) == {
+        "/api/v1/health",
+        "/api/v1/assets",
+        "/api/v1/assets/{asset_id}",
+        "/api/v1/outages",
+        "/api/v1/risk/summary",
+        "/api/v1/risk/hotspots",
+        "/api/v1/risk/rescore",
+        "/api/v1/model",
+    }
+    components = document["components"]["schemas"]
+    assert "type" in components["PointGeometry"]["required"]
+    assert "low" in components["BandCounts"]["required"]
+    assert "horizon_days" in components["RescoreResponse"]["required"]
+
+    def check(value: object) -> None:
+        if isinstance(value, dict):
+            if "$ref" in value:
+                assert value["$ref"].removeprefix("#/components/schemas/") in components
+            for child in value.values():
+                check(child)
+        elif isinstance(value, list):
+            for child in value:
+                check(child)
+
+    check(document)
+    for path in document["paths"].values():
+        for operation in path.values():
+            assert all(
+                parameter["name"] not in {"session", "engine", "root"}
+                for parameter in operation.get("parameters", [])
+            )

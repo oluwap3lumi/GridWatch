@@ -12,6 +12,8 @@ locally. See [M1 verification](docs/m1-verification.md).
 M2 temporal features, calibrated logistic regression and CPU XGBoost, SHAP
 explanations, and a versioned model registry are implemented and verified locally.
 See [M2 verification](docs/m2-verification.md) and [the model card](docs/model-card.md).
+M3 adds asset/outage GeoJSON, risk scoring/aggregation/hotspots, and model information.
+See [the API contract](docs/api.md) for filters, pagination, scoring policy, and errors.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -34,6 +36,7 @@ after installing tools.
 cp .env.example .env
 make setup
 make up
+make migrate
 make seed
 make train
 make smoke
@@ -50,7 +53,7 @@ map service are needed. A WebGL-capable browser is required. API docs:
 http://localhost:8000/docs; liveness: http://localhost:8000/health.
 `make up` waits for all three services to become healthy.
 
-`make types` regenerates the M0 health TypeScript contract from OpenAPI.
+`make types` regenerates all component and operation TypeScript contracts from OpenAPI.
 `make build` checks the frontend production build. `make hooks` installs Git hooks.
 `make down` stops the stack and preserves database data.
 `make seed` migrates and atomically replaces synthetic assets, weather, and outages.

@@ -6,17 +6,18 @@ from typing import Literal
 from pydantic import BaseModel, Field, FiniteFloat
 
 from app.schemas.assets import PageMetadata
+from app.schemas.base import ApiModel
 from app.schemas.spatial import PointGeometry
 
 
-class BandCounts(BaseModel):
+class BandCounts(ApiModel):
     low: int = Field(default=0, ge=0)
     medium: int = Field(default=0, ge=0)
     high: int = Field(default=0, ge=0)
     critical: int = Field(default=0, ge=0)
 
 
-class ScoringStamp(BaseModel):
+class ScoringStamp(ApiModel):
     model_version: str
     scored_at: datetime
     prediction_cutoff: datetime | None
@@ -29,7 +30,7 @@ class RescoreResponse(ScoringStamp):
     counts_by_band: BandCounts
 
 
-class FeederSummary(BaseModel):
+class FeederSummary(ApiModel):
     feeder_id: int
     total_assets: int = Field(ge=0)
     scored_assets: int = Field(ge=0)
@@ -37,7 +38,7 @@ class FeederSummary(BaseModel):
     counts_by_band: BandCounts
 
 
-class RiskSummary(BaseModel):
+class RiskSummary(ApiModel):
     total_assets: int = Field(ge=0)
     scored_assets: int = Field(ge=0)
     unscored_assets: int = Field(ge=0)
@@ -46,7 +47,7 @@ class RiskSummary(BaseModel):
     scoring: ScoringStamp | None
 
 
-class HotspotProperties(BaseModel):
+class HotspotProperties(ApiModel):
     asset_count: int = Field(ge=3)
     asset_ids: list[int]
     mean_score: FiniteFloat = Field(ge=0, le=1)
@@ -54,14 +55,14 @@ class HotspotProperties(BaseModel):
     counts_by_band: BandCounts
 
 
-class HotspotFeature(BaseModel):
+class HotspotFeature(ApiModel):
     type: Literal["Feature"] = "Feature"
     id: int
     geometry: PointGeometry
     properties: HotspotProperties
 
 
-class HotspotCollection(BaseModel):
+class HotspotCollection(ApiModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[HotspotFeature]
     pagination: PageMetadata
@@ -69,12 +70,12 @@ class HotspotCollection(BaseModel):
     minimum_assets: Literal[3] = 3
 
 
-class FeatureImportance(BaseModel):
+class FeatureImportance(ApiModel):
     feature: str
     mean_absolute_contribution: FiniteFloat = Field(ge=0)
 
 
-class ModelInfo(BaseModel):
+class ModelInfo(ApiModel):
     model_version: str
     trained_at: datetime
     data_hash: str

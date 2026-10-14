@@ -132,10 +132,24 @@ def test_outage_geojson_time_bbox_and_asset_filters() -> None:
         ("/api/v1/assets", {"min_risk": 1.1}),
         ("/api/v1/assets", {"bbox": "nan,0,1,1"}),
         ("/api/v1/outages", {"started_after": "2025-01-01"}),
-        ("/api/v1/outages", {"started_after": "2025-02-01Z", "started_before": "2025-01-01Z"}),
+        (
+            "/api/v1/outages",
+            {"started_after": "2025-02-01T00:00:00Z", "started_before": "2025-01-01T00:00:00Z"},
+        ),
     ],
 )
 def test_invalid_query_returns_422(path: str, query: dict[str, str | int | float]) -> None:
     status, payload = request(path, query)
     assert status == 422
     assert isinstance(payload["detail"], list)
+
+
+@pytest.mark.usefixtures("api_data")
+def test_no_model_and_unscored_http_states() -> None:
+    assert request("/api/v1/model")[0] == 404
+    status, summary = request("/api/v1/risk/summary")
+    assert status == 200
+    assert summary["unscored_assets"] == 60 and summary["scoring"] is None
+    assert request("/api/v1/risk/hotspots")[1]["features"] == []
+    status, error = request("/api/v1/risk/rescore", method="POST")
+    assert status == 409 and "make train" in error["detail"]

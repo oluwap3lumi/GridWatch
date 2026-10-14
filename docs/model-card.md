@@ -61,5 +61,12 @@ locations include the scored asset's own previous outages. Weather is assigned
 from the closest available station to the asset's feeder midpoint. Missing weather
 uses zeros plus coverage count; nearest-outage distances use a spherical rather
 than spheroidal approximation. TreeSHAP describes associations, not causal effects.
-No protected/customer attributes or real utility records are used. M3 will add
-asset scoring and API delivery; this milestone does not write `risk_scores`.
+No protected/customer attributes or real utility records are used.
+
+M3 scoring uses the same feature contract at the next UTC day after the latest
+weather observation, with a 30-day horizon. The default prediction cutoff is
+2026-01-01. The actual scoring time is recorded separately. Approved synthetic
+demo bands use 0.05, 0.08, and 0.10 boundaries; these are not operational thresholds.
+`risk_scores` stores calibrated probabilities and up to five strongest signed
+TreeSHAP factors in raw log-odds units. Those factors do not sum to the calibrated
+probability and must not be interpreted as causal effects. See [the API contract](api.md).
