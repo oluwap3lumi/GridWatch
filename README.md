@@ -9,8 +9,9 @@ M0 foundations are implemented and verified locally. See [the build plan](docs/B
 and [verification results](docs/m0-verification.md).
 M1 database schema, synthetic generation, and loading are implemented and verified
 locally. See [M1 verification](docs/m1-verification.md).
-M2 adds temporal features, calibrated logistic regression and CPU XGBoost,
-SHAP explanations, and a versioned model registry. See [the model card](docs/model-card.md).
+M2 temporal features, calibrated logistic regression and CPU XGBoost, SHAP
+explanations, and a versioned model registry are implemented and verified locally.
+See [M2 verification](docs/m2-verification.md) and [the model card](docs/model-card.md).
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
