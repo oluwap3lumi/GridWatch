@@ -52,3 +52,10 @@ asset-month rows). Calibration error uses ten equal-width probability bins.
 the committed training source. Files under `ml/artifacts/<model_version>/`
 contain dependency/configuration metadata and detailed evaluation reports.
 See [the model card](model-card.md) for target windows, feature limitations, and results.
+
+Migration `0002` adds `risk_scores.prediction_cutoff` (UTC). It is nullable for
+legacy rows whose prediction date is unknown; M3 rescoring always populates it.
+`scored_at` is the actual UTC time the batch was computed. `top_factors` contains
+up to five nonzero factors sorted by absolute contribution: `feature`,
+`feature_value`, signed `contribution`, and `contribution_unit = log_odds`.
+Contributions describe raw XGBoost output, not calibrated probability changes.

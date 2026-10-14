@@ -31,7 +31,8 @@ Malformed filters return FastAPI's typed 422 validation response.
 
 ## Approved M3 scoring policy
 
-Scoring and risk/model routes are the next implementation slice.
+The scoring service and aggregate repositories implement the policy below;
+risk/model HTTP routes are the next implementation slice.
 Predictions use a 30-day horizon beginning at the next UTC day after the latest
 weather observation: 2026-01-01 for the default demo corpus. `scored_at` records
 the actual scoring time; migration `0002` adds `prediction_cutoff` separately.
@@ -50,3 +51,21 @@ Top factors will report signed exact TreeSHAP contributions in the raw XGBoost
 log-odds space, separately from the calibrated probability score.
 Hotspots will connect high/critical assets within 500 metres using
 `ST_DWithin` on geography and require at least three distinct assets.
+
+Rescoring uses the latest registered XGBoost run whose recorded quality gate and
+PR-AUC lift both pass. Before use, every artifact checksum and its database
+provenance are validated. Scoring and model information keep the calibrated
+probability and uncalibrated SHAP output space separate.
+
+A session advisory lock rejects simultaneous rescoring. After computation,
+the persistence transaction takes the seed/training corpus lock, rechecks the
+source hash and latest passing version, and replaces the complete score batch.
+Failures roll back without changing the previous batch. Retraining during
+scoring causes a conflict if a newer passing version becomes available.
+
+Feeder summaries include the feeder asset itself and its child assets, so their
+totals sum to the global fleet totals. Hotspot membership is transitive: three
+assets connected by two 500-metre edges form one group even when the endpoints
+are farther apart. Smaller groups are excluded. Feeders use their line midpoint
+for distance, matching the ML feature location; cluster centres use PostGIS
+geography centroids. A bbox filters original asset geometries before clustering.

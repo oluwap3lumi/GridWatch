@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from ml.evaluate import probability_metrics, tree_explanation
 from ml.features import FEATURE_COLUMNS
-from ml.predict import predict_probabilities
+from ml.predict import predict_probabilities, score_features
 from ml.split import temporal_split
 from ml.train import TrainingConfig, fit_models
 from xgboost import DMatrix
@@ -65,6 +65,14 @@ def test_training_reproducibility_shap_and_prediction_contract(tmp_path: Path) -
     probabilities = predict_probabilities(first.bundle, validation)
     np.testing.assert_array_equal(probabilities, predict_probabilities(second.bundle, validation))
     assert ((probabilities >= 0) & (probabilities <= 1)).all()
+    scored = score_features(first.bundle, validation)
+    np.testing.assert_array_equal([prediction.score for prediction in scored], probabilities)
+    assert [prediction.asset_id for prediction in scored] == list(validation.asset_id)
+    for prediction in scored:
+        assert len(prediction.factors) <= 5
+        assert [abs(factor.contribution) for factor in prediction.factors] == sorted(
+            (abs(factor.contribution) for factor in prediction.factors), reverse=True
+        )
     explanation = tree_explanation(first.bundle.raw_xgboost, validation)
     margin = first.bundle.raw_xgboost.get_booster().predict(
         DMatrix(validation.loc[:, list(FEATURE_COLUMNS)].astype(float)), output_margin=True
@@ -86,6 +94,9 @@ def test_training_reproducibility_shap_and_prediction_contract(tmp_path: Path) -
         save_artifacts(tmp_path, "test-run", second, {})
     (path / "metrics.json").write_text("{}")
     with pytest.raises(ValueError, match="checksum"):
+        load_artifacts(tmp_path, "test-run")
+    (path / "manifest.json").write_text("null")
+    with pytest.raises(ValueError, match="manifest"):
         load_artifacts(tmp_path, "test-run")
     save_artifacts(tmp_path, "unregistered", second, {})
     remove_unregistered_artifacts(tmp_path, "unregistered")

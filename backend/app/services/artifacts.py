@@ -6,9 +6,12 @@ import os
 import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 import joblib
-from ml.train import ModelBundle, TrainingResult
+
+if TYPE_CHECKING:
+    from ml.train import ModelBundle, TrainingResult
 
 FILES = ("model.joblib", "metadata.json", "metrics.json", "evaluation.json")
 
@@ -30,7 +33,7 @@ def version_path(root: Path, version: str) -> Path:
 
 
 def save_artifacts(
-    root: Path, version: str, result: TrainingResult, metadata: dict[str, object]
+    root: Path, version: str, result: "TrainingResult", metadata: dict[str, object]
 ) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     target = version_path(root, version)
@@ -50,13 +53,23 @@ def save_artifacts(
     return target
 
 
-def load_artifacts(root: Path, version: str) -> ModelBundle:
-    """Load only trusted local joblib files; hashes detect corruption, not malicious writers."""
+def verify_artifacts(root: Path, version: str) -> Path:
+    """Check every artifact before use, including metadata-only model information requests."""
     target = version_path(root, version)
     manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise ValueError("Artifact manifest must be an object of file checksums")
     for name in FILES:
         if hashlib.sha256((target / name).read_bytes()).hexdigest() != manifest.get(name):
             raise ValueError(f"Artifact checksum mismatch: {name}")
+    return target
+
+
+def load_artifacts(root: Path, version: str) -> "ModelBundle":
+    """Load only trusted local joblib files; hashes detect corruption, not malicious writers."""
+    from ml.train import ModelBundle
+
+    target = verify_artifacts(root, version)
     bundle = joblib.load(target / "model.joblib")
     if not isinstance(bundle, ModelBundle):
         raise ValueError("Artifact does not contain a GridWatch model")

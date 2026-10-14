@@ -43,3 +43,15 @@ def recent_runs(session: Session, limit: int = 2) -> list[ModelRun]:
             select(ModelRun).order_by(ModelRun.trained_at.desc(), ModelRun.id.desc()).limit(limit)
         )
     )
+
+
+def latest_passing_run(session: Session) -> ModelRun | None:
+    return session.scalar(
+        select(ModelRun)
+        .where(
+            ModelRun.metrics["quality_gate_passed"].as_integer() == 1,
+            ModelRun.metrics["pr_auc_lift"].as_float() > 0,
+        )
+        .order_by(ModelRun.trained_at.desc(), ModelRun.id.desc())
+        .limit(1)
+    )
