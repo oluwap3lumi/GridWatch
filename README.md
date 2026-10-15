@@ -21,7 +21,9 @@ explanations/history are implemented and verified locally. See
 check and review choices. M5 model metrics, global feature importance, registered
 version history, and UI rescoring are implemented and verified locally. See
 [M5 verification](docs/m5-verification.md) for the retraining-without-restart check.
-M6 DevOps hardening is in progress.
+M6 CI, structured logging, request IDs, metrics, and schema readiness are implemented
+and verified locally and in GitHub Actions. See [M6 verification](docs/m6-verification.md).
+M7 polish and publishing are awaiting approval; the GitHub repository remains private.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -123,7 +125,7 @@ tests (including real isolated PostGIS integration tests), builds the frontend,
 checks generated-type drift, and boots/seeds the full stack for HTTP and PostGIS
 smoke checks. It trains twice and checks reproducibility. Local hooks run the same
 lint/type target. The smoke check calls every endpoint and performs actual rescoring.
-CI workflow execution itself has not been verified remotely.
+The [hosted CI workflow](https://github.com/oluwap3lumi/GridWatch/actions) has passed.
 
 `make verify-clean` clones committed sources into an ignored `.tooling/` directory,
 installs locked dependencies, and runs startup, seeding, training, tests, lint,
