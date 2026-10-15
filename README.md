@@ -21,7 +21,7 @@ explanations/history are implemented and verified locally. See
 check and review choices. M5 model metrics, global feature importance, registered
 version history, and UI rescoring are implemented and verified locally. See
 [M5 verification](docs/m5-verification.md) for the retraining-without-restart check.
-M6 is awaiting approval.
+M6 DevOps hardening is in progress.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -86,8 +86,11 @@ Use the same seed, source revision, locked dependencies, and CPU environment.
 Retraining appends versions; it does not replace earlier artifacts or rescore assets.
 After a process crash between file publication and database registration, an
 unregistered artifact directory may remain; database records identify registered runs.
-API health currently measures process liveness; Compose checks database readiness
-separately. The web container currently runs the Vite development server.
+API `/health` measures process liveness; `/api/v1/ready` checks PostGIS and the
+required migrated schema. Compose waits for readiness and startup applies Alembic
+migrations. `/api/v1/metrics` exposes process counters; request logs are JSON with
+validated `X-Request-ID` values and canonical route templates. See [operations](docs/api.md).
+The web container currently runs the Vite development server.
 
 Click **Top 10 transformers**, then select a ranked asset or a map point to see
 its signed SHAP factors and paginated outage history. Type, band, and minimum-risk
@@ -121,6 +124,13 @@ checks generated-type drift, and boots/seeds the full stack for HTTP and PostGIS
 smoke checks. It trains twice and checks reproducibility. Local hooks run the same
 lint/type target. The smoke check calls every endpoint and performs actual rescoring.
 CI workflow execution itself has not been verified remotely.
+
+`make verify-clean` clones committed sources into an ignored `.tooling/` directory,
+installs locked dependencies, and runs startup, seeding, training, tests, lint,
+build, and smoke checks with separate ports and a fresh Compose project. It also
+checks liveness/readiness during a database outage and recovery. Only that
+verification project's containers and volumes are removed. The clone and a JSON
+receipt remain under `.tooling/`; the existing demo is preserved.
 
 If ports are occupied, change `API_PORT` / `WEB_PORT` in `.env`. For `make smoke`,
 export the same overrides in your shell (`$env:API_PORT = '8001'` in PowerShell).

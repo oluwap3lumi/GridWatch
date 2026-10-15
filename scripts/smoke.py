@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.schemas.assets import AssetCollection, AssetDetail, OutageCollection  # noqa: E402
+from app.schemas.operations import MetricsResponse, ReadinessResponse  # noqa: E402
 from app.schemas.risk import (  # noqa: E402
     HotspotCollection,
     ModelHistory,
@@ -24,6 +25,18 @@ def main() -> None:
     """Verify every application endpoint and matching scores across the running full stack."""
     api = f"http://localhost:{os.getenv('API_PORT', '8000')}"
     web = f"http://localhost:{os.getenv('WEB_PORT', '5173')}"
+    for base in (api, web):
+        request = Request(f"{base}/api/v1/ready", headers={"X-Request-ID": "stack-smoke"})
+        with urlopen(request, timeout=10) as response:
+            assert response.status == 200
+            assert response.headers["X-Request-ID"] == "stack-smoke"
+            assert ReadinessResponse.model_validate_json(response.read()).status == "ready"
+        print(f"PASS {base}: schema readiness and request ID propagation")
+    with urlopen(f"{api}/api/v1/metrics", timeout=10) as response:
+        metrics = MetricsResponse.model_validate_json(response.read())
+    assert metrics.scope == "process" and metrics.requests > 0
+    assert any(route.route == "/api/v1/ready" for route in metrics.routes)
+    print("PASS process metrics and canonical route labels")
     for url in (f"{api}/health", f"{api}/api/v1/health", f"{web}/api/v1/health"):
         with urlopen(url, timeout=10) as response:
             assert response.status == 200

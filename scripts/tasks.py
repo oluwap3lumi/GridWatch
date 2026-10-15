@@ -101,6 +101,8 @@ def main() -> None:
             run("uv", "run", "--project", "backend", "python", "scripts/smoke.py")
         case "types":
             run("uv", "run", "--project", "backend", "python", "scripts/export_types.py")
+        case "verify-clean":
+            run(sys.executable, "scripts/verify_clean_clone.py")
         case "hooks":
             run("uv", "run", "--project", "backend", "pre-commit", "install")
         case "train":
