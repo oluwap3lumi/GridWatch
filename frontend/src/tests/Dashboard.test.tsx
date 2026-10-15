@@ -7,7 +7,7 @@ import { blankMapStyle } from '../components/mapStyle';
 describe('dashboard foundation', () => {
   it('renders the map container and honest empty-data status', () => {
     const html = renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><Dashboard /></QueryClientProvider>);
-    expect(html).toContain('GridWatch');
+    expect(html).toContain('A clearer view of infrastructure risk.');
     expect(html).toContain('role="status"');
     expect(html).toContain('Loading the complete network');
   });

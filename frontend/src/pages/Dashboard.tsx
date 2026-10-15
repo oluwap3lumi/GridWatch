@@ -17,8 +17,7 @@ export function Dashboard() {
   const assets = useMemo(() => rankedAssets(fleet.data?.assets ?? [], filters, topTen), [fleet.data, filters, topTen]);
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
   function changeFilters(value: FilterState) { setFilters(value); setTopTen(false); setSelectedId(null); setVisibleCount(20); }
-  return <main>
-    <header><div className="brand"><span className="brand-mark" aria-hidden="true">G</span>GridWatch<span className="brand-divider" /><small>Network intelligence</small></div><span className="badge"><span className="live-dot" />Synthetic demo</span></header>
+  return <>
     <div className="intro"><div><p className="eyebrow">Electricity distribution / Risk explorer</p><h1>A clearer view of infrastructure risk.</h1><p>Find the assets that need a closer look. Explore 30-day failure probabilities across the synthetic network.</p></div><button className="secondary" disabled={fleet.isFetching} onClick={() => void fleet.refetch()}>{fleet.isFetching ? 'Loading network…' : 'Refresh network'}</button></div>
     {fleet.isPending && <div className="state-card" role="status">Loading the complete network…</div>}
     {fleet.isError && <div className="state-card error" role="alert"><strong>Network could not refresh</strong><p>{fleet.error.message}</p><button onClick={() => void fleet.refetch()}>Retry network</button>{fleet.data && <p>The previous snapshot remains visible below.</p>}</div>}
@@ -37,6 +36,5 @@ export function Dashboard() {
       </div>
       {!fleet.data.assets.length && <p role="status">No network assets yet. Run make seed to load the synthetic corpus.</p>}
     </>}
-    <footer><span>GRIDWATCH / Synthetic or public data only</span><span>Historical demo · Lagos area</span></footer>
-  </main>;
+  </>;
 }

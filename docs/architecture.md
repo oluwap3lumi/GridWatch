@@ -81,3 +81,11 @@ the detail query loads ten outage events per page and rejects a different scorin
 stamp. Query functions consume AbortSignals, so changing selection cancels obsolete
 requests. Error and empty states distinguish missing data, unscored assets, and
 failed loads. The ranked list provides a keyboard-accessible path without WebGL.
+
+The model page at `#model` reads verified current metadata and independently
+paginated registered version history. Hash navigation uses the browser API, without
+an additional routing dependency. Available and scored versions remain distinct;
+refresh invalidates the model/history queries without restarting the app. Metrics
+compare calibrated estimators on the same chronological validation asset-months.
+History flags derive from recorded quality-gate and PR-AUC lift values and do not
+claim artifact verification for historical runs.

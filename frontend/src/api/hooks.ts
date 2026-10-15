@@ -7,6 +7,14 @@ export function useFleet() {
     retry: (count, error) => count < 1 && (!(error instanceof ApiError) || error.status >= 500) });
 }
 
+const retryRead = (count: number, error: Error) => count < 1 && (!(error instanceof ApiError) || error.status >= 500);
+export function useModel() {
+  return useQuery({ queryKey: ['model'], queryFn: ({ signal }) => get('GET /api/v1/model', {}, {}, signal), staleTime: 15_000, retry: retryRead });
+}
+export function useModelHistory(offset: number) {
+  return useQuery({ queryKey: ['model-history', offset], queryFn: ({ signal }) => get('GET /api/v1/model/history', {}, { limit: 10, offset }, signal), staleTime: 15_000, retry: retryRead });
+}
+
 export function useAssetDetail(id: number | null, offset: number, stamp: ScoringStamp | null) {
   return useQuery({ queryKey: ['asset', id, offset, stampKey(stamp)], enabled: id !== null,
     queryFn: async ({ signal }) => {
