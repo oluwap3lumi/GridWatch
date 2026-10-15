@@ -18,7 +18,10 @@ and [the API contract](docs/api.md) for filters, pagination, scoring policy, and
 M4 risk map, filters, summary cards, hotspots, transformer ranking, and asset
 explanations/history are implemented and verified locally. See
 [M4 verification](docs/m4-verification.md), including the real-browser acceptance
-check and review choices. M5 is awaiting approval.
+check and review choices. M5 model metrics, global feature importance, registered
+version history, and UI rescoring are implemented and verified locally. See
+[M5 verification](docs/m5-verification.md) for the retraining-without-restart check.
+M6 is awaiting approval.
 `make migrate` applies Alembic migrations to the running API's database.
 `make test` includes a separate
 ephemeral PostGIS container; it uses a generated password, exposes no host database
@@ -100,6 +103,17 @@ demo choices. SHAP factors describe uncalibrated model log-odds, not additive
 changes to calibrated probability or causal effects. **Refresh network** reads
 the API; it does not rescore. The dashboard checks batch consistency across all
 pages and preserves the previous snapshot if a refresh fails.
+
+Open **Model** (http://localhost:5173/#model) for calibrated validation metrics,
+baseline comparisons, global SHAP importance, provenance, and paginated version
+history. Available and scored versions are displayed separately. To update the
+running demo, run `make train`, click **Refresh models**, then **Rescore network**.
+The page and API/web containers can remain running throughout. Rescoring saves
+the whole fleet and refreshes the map, summaries, model status, and selected asset.
+The button stays disabled until saving and refreshing finish. A failed read after
+saving is reported separately; **Refresh views** retries reads without rescoring.
+Failed quality gates remain in history. Historical records do not certify current
+artifact-file availability; the current model endpoint verifies its artifacts.
 
 GitHub Actions installs locked dependencies, runs lint/types, backend and frontend
 tests (including real isolated PostGIS integration tests), builds the frontend,
