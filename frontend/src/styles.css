@@ -114,6 +114,17 @@ h3 { font-size: 13px; margin: 0; }
 .state-card { border: 1px solid #dce5df; border-radius: 9px; padding: 35px; background: white; margin: 10px 0 20px; font-size: 13px; }
 .state-card.error { border-color: #e6b1b5; }
 .page-nav { display: flex; gap: 6px; margin-left: auto; margin-right: 18px; }
+.rescore-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 15px 18px; border: 1px solid #d7e3da; background: #edf4ef; border-radius: 8px; margin-top: 20px; }
+.rescore-bar > div:first-child { flex: 1; }
+.rescore-bar strong { font-size: 12px; }
+.rescore-bar p { font-size: 10px; color: #6b8072; margin: 5px 0 0; line-height: 1.6; }
+.rescore-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rescore-button { background: #245b4b; color: white; border-color: #245b4b; }
+.rescore-message { width: 100%; }
+.rescore-message:empty { display: none; }
+.rescore-message span { display: block; overflow-wrap: anywhere; }
+.rescore-message [role='alert'] { border-left: 2px solid #c96b73; padding-left: 12px; }
+@media (max-width: 760px) { .rescore-bar > div:first-child { flex-basis: 100%; } .rescore-actions { width: 100%; } }
 .page-nav a { font-size: 12px; color: #6a8073; padding: 9px 14px; border-radius: 6px; text-decoration: none; }
 .page-nav a[aria-current='page'] { color: #245b4b; background: #e5efe9; font-weight: 600; }
 .model-status { display: flex; justify-content: space-between; gap: 20px; border: 1px solid #ccddd2; background: #edf4ef; padding: 22px; border-radius: 9px; margin-bottom: 18px; }

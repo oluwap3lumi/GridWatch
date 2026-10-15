@@ -1,6 +1,7 @@
-import type { AssetFeature, ScoringStamp } from '../api/generated';
+import type { AssetFeature, ModelInfo, ScoringStamp } from '../api/generated';
 import type { FleetSnapshot } from '../api/client';
 export const stamp: ScoringStamp = { model_version: 'synthetic-test', scored_at: '2026-10-14T10:00:00Z', prediction_cutoff: '2026-01-01T00:00:00Z', horizon_days: 30 };
+export const modelFixture: ModelInfo = { model_version: 'new-model', trained_at: '2026-01-01T00:00:00Z', scored_model_version: 'old-model', data_hash: 'a'.repeat(64), git_sha: 'b'.repeat(40), features: ['asset_age_years'], metrics: { quality_gate_passed: 1, pr_auc_lift: 0.01, baseline_pr_auc: 0.1, xgboost_pr_auc: 0.11, xgboost_rows: 100 }, feature_importance: [{ feature: 'asset_age_years', mean_absolute_contribution: 0.2 }], explanation_space: 'uncalibrated XGBoost log-odds', horizon_days: 30 };
 export function fixtureAsset(id: number, score: number | null, kind: AssetFeature['properties']['type'] = 'transformer'): AssetFeature {
   return { type: 'Feature', id, geometry: { type: 'Point', coordinates: [3.4, 6.5] }, properties: {
     type: kind, feeder_id: 1, install_date: '2000-01-01', capacity_kva: 100, load_factor: 0.8,

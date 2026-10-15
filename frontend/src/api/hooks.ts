@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { ApiError, get, loadFleet, SnapshotChangedError, stampKey } from './client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
+import { ApiError, get, loadFleet, rescore, SnapshotChangedError, stampKey } from './client';
 import type { ScoringStamp } from './generated';
 
 export function useFleet() {
@@ -13,6 +14,30 @@ export function useModel() {
 }
 export function useModelHistory(offset: number) {
   return useQuery({ queryKey: ['model-history', offset], queryFn: ({ signal }) => get('GET /api/v1/model/history', {}, { limit: 10, offset }, signal), staleTime: 15_000, retry: retryRead });
+}
+
+export async function refreshViews(client: QueryClient): Promise<boolean> {
+  // Cancel reads begun before scoring, then replace the fleet cache as one snapshot.
+  await client.cancelQueries({ predicate: ({ queryKey }) => ['fleet', 'model', 'model-history'].includes(String(queryKey[0])) });
+  const results = await Promise.allSettled([
+    client.fetchQuery({ queryKey: ['fleet'], queryFn: ({ signal }) => loadFleet(signal), staleTime: 0, retry: retryRead }),
+    client.invalidateQueries({ queryKey: ['model'] }, { throwOnError: true }),
+    client.invalidateQueries({ queryKey: ['model-history'] }, { throwOnError: true }),
+  ]);
+  // Old detail keys include their scoring stamp; they cannot overwrite the new batch.
+  await client.invalidateQueries({ queryKey: ['asset'], refetchType: 'none' });
+  return results.every((result) => result.status === 'fulfilled');
+}
+
+export function useRescore() {
+  const client = useQueryClient();
+  return useMutation({ mutationKey: ['rescore'], retry: false, mutationFn: async () => {
+    const scored = await rescore();
+    // A failed GET must never turn a committed POST into an invitation to retry it.
+    let refreshed = false;
+    try { refreshed = await refreshViews(client); } catch { /* Scores were already saved. */ }
+    return { scored, refreshed };
+  } });
 }
 
 export function useAssetDetail(id: number | null, offset: number, stamp: ScoringStamp | null) {

@@ -3,9 +3,9 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ModelInfo } from '../pages/ModelInfo';
-import type { ModelHistory, ModelInfo as Model } from '../api/generated';
+import type { ModelHistory } from '../api/generated';
+import { modelFixture } from './fixtures';
 
-export const modelFixture: Model = { model_version: 'new-model', trained_at: '2026-01-01T00:00:00Z', scored_model_version: 'old-model', data_hash: 'a'.repeat(64), git_sha: 'b'.repeat(40), features: ['asset_age_years'], metrics: { quality_gate_passed: 1, pr_auc_lift: 0.01, baseline_pr_auc: 0.1, xgboost_pr_auc: 0.11, xgboost_rows: 100 }, feature_importance: [{ feature: 'asset_age_years', mean_absolute_contribution: 0.2 }], explanation_space: 'uncalibrated XGBoost log-odds', horizon_days: 30 };
 function history(offset = 0): ModelHistory {
   return { items: [{ model_version: offset ? 'failed-model' : 'new-model', trained_at: modelFixture.trained_at, git_sha: modelFixture.git_sha, data_hash: modelFixture.data_hash, features: modelFixture.features, metrics: modelFixture.metrics, quality_gate_passed: offset === 0 }], pagination: { total: 11, limit: 10, offset, next_offset: offset ? null : 10 } };
 }

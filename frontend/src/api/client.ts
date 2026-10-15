@@ -14,11 +14,19 @@ export async function get<K extends Extract<keyof ApiOperations, `GET ${string}`
   query: ApiOperations[K]['query'],
   signal?: AbortSignal,
 ): Promise<ApiOperations[K]['response']> {
+  return request(operation, path, query, signal);
+}
+
+export function rescore() {
+  return request('POST /api/v1/risk/rescore', {}, {});
+}
+
+async function request<K extends keyof ApiOperations>(operation: K, path: ApiOperations[K]['path'], query: ApiOperations[K]['query'], signal?: AbortSignal): Promise<ApiOperations[K]['response']> {
   let url = operation.split(' ')[1];
   for (const [key, value] of Object.entries(path)) url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value !== null && value !== undefined) params.set(key, String(value));
-  const response = await fetch(`${url}${params.size ? `?${params}` : ''}`, { signal });
+  const response = await fetch(`${url}${params.size ? `?${params}` : ''}`, { method: operation.split(' ')[0], signal });
   if (!response.ok) {
     let message = `Request failed (${response.status}).`;
     try {

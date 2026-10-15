@@ -25,14 +25,19 @@ describe('risk explorer', () => {
     const ties = [fleetFixture.assets[0], { ...fleetFixture.assets[0], id: 1 }];
     expect(rankedAssets(ties, defaultFilters, false).map(({ id }) => id)).toEqual([1, 2]);
   });
-  it('finds the top ten in one click and selects the first asset', async () => {
+  it('finds the top ten in one click', async () => {
     showFleet();
     await userEvent.click(screen.getByRole('button', { name: /Top 10 transformers/ }));
     expect(screen.getByRole('heading', { name: 'Top 10 transformers' })).toBeInTheDocument();
     const list = screen.getByRole('region', { name: 'Ranked assets' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(10);
-    await userEvent.click(within(list).getAllByRole('button')[0]);
-    expect(within(list).getAllByRole('button')[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(within(list).getAllByRole('button')[0]).toHaveTextContent('transformer #13');
+  });
+  it('selects an asset and shows its explanation and history', async () => {
+    showFleet();
+    const row = screen.getByRole('button', { name: /transformer #13/ });
+    await userEvent.click(row);
+    expect(row).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('heading', { name: 'Why this score?' })).toBeInTheDocument();
     expect(screen.getByText('Load above 75% (fraction)')).toBeInTheDocument();
     expect(await screen.findByText('No outage events recorded for this asset.')).toBeInTheDocument();

@@ -89,3 +89,11 @@ refresh invalidates the model/history queries without restarting the app. Metric
 compare calibrated estimators on the same chronological validation asset-months.
 History flags derive from recorded quality-gate and PR-AUC lift values and do not
 claim artifact verification for historical runs.
+
+The shared rescore control sends a single non-retried POST. It remains pending
+through the save and cache refresh. Reads started before saving are cancelled;
+the complete fleet snapshot is replaced atomically in the query cache, model and
+history queries are invalidated, and selected detail keys follow the new scoring
+stamp. Failed POSTs leave the displayed cache intact. A committed score batch with
+a failed subsequent GET is reported as saved with a refresh failure, and the
+separate Refresh views action retries reads without sending another scoring POST.
