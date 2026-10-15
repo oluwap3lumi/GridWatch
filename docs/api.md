@@ -71,6 +71,19 @@ geography centroids. A bbox filters original asset geometries before clustering.
 
 ## Risk and model routes
 
+M6 operations routes: `GET /api/v1/health` (and `/health`) remain process liveness.
+`GET /api/v1/ready` requires PostGIS and all five serving tables plus the prediction
+cutoff column; it returns typed `ready` / 503 `not_ready` JSON without requiring
+seed data or a trained model. Startup applies Alembic migrations before serving.
+`GET /api/v1/metrics` returns typed JSON process uptime, in-flight requests, completed
+request counts and cumulative seconds by method, route template, and status code.
+Counters reset on process restart; each worker has its own counters. The current
+metrics request is in-flight until its response completes. Unknown paths share one
+bucket. Every HTTP response includes `X-Request-ID`; one incoming ASCII ID matching
+`[A-Za-z0-9._-]{1,64}` is echoed, otherwise a new UUID hex ID is generated.
+Request logs are JSON and omit raw paths, query strings, bodies, headers, and
+exception messages. Unexpected errors return a generic typed 500 response.
+
 - `GET /model/history`: registered version records, newest training timestamp then
   ID first, with standard `limit` (default 100, maximum 500) / `offset` pagination.
   Includes metrics, features, provenance, and a derived quality-gate flag. Empty

@@ -8,6 +8,8 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 COPY backend/app ./app
 COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./alembic.ini
+COPY backend/logging.json ./logging.json
+COPY backend/start.sh ./start.sh
 COPY data ./data
 COPY ml ./ml
 ENV PATH="/app/.venv/bin:$PATH"
@@ -19,4 +21,4 @@ CMD ["pytest", "tests/integration", "-v"]
 
 FROM base AS runtime
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "start.sh"]

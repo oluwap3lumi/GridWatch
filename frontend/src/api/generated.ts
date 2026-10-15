@@ -16,6 +16,7 @@ export type HotspotCollection = { "type": "FeatureCollection"; "features": Array
 export type HotspotFeature = { "type": "Feature"; "id": number; "geometry": PointGeometry; "properties": HotspotProperties; };
 export type HotspotProperties = { "asset_count": number; "asset_ids": Array<number>; "mean_score": number; "max_score": number; "counts_by_band": BandCounts; };
 export type LineGeometry = { "type": "LineString"; "coordinates": Array<Position>; };
+export type MetricsResponse = { "scope": "process"; "uptime_seconds": number; "in_flight": number; "requests": number; "routes": Array<RouteMetric>; };
 export type ModelHistory = { "items": Array<ModelVersion>; "pagination": PageMetadata; };
 export type ModelInfo = { "model_version": string; "trained_at": string; "data_hash": string; "git_sha": string; "features": Array<string>; "metrics": Record<string, (number) | (number)>; "feature_importance": Array<FeatureImportance>; "explanation_space": "uncalibrated XGBoost log-odds"; "horizon_days": 30; "scored_model_version": (string) | (null); };
 export type ModelVersion = { "model_version": string; "trained_at": string; "data_hash": string; "git_sha": string; "features": Array<string>; "metrics": Record<string, (number) | (number)>; "quality_gate_passed": boolean; };
@@ -25,11 +26,13 @@ export type OutageProperties = { "asset_id": number; "started_at": string; "dura
 export type PageMetadata = { "total": number; "limit": number; "offset": number; "next_offset": (number) | (null); };
 export type PointGeometry = { "type": "Point"; "coordinates": Position; };
 export type Position = [number, number];
+export type ReadinessResponse = { "status": "ready" | "not_ready"; };
 export type RescoreResponse = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
 export type RiskBand = "low" | "medium" | "high" | "critical";
 export type RiskFactor = { "feature": string; "feature_value": number; "contribution": number; "contribution_unit": "log_odds"; };
 export type RiskSnapshot = { "score": number; "band": RiskBand; "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "top_factors": Array<RiskFactor>; };
 export type RiskSummary = { "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; "by_feeder": Array<FeederSummary>; "scoring": (ScoringStamp) | (null); };
+export type RouteMetric = { "method": string; "route": string; "status_code": number; "requests": number; "duration_seconds": number; };
 export type ScoringStamp = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; };
 export type ValidationError = { "loc": Array<(string) | (number)>; "msg": string; "type": string; "input"?: unknown; "ctx"?: Record<string, unknown>; };
 
@@ -49,6 +52,11 @@ export interface ApiOperations {
     query: Record<string, never>;
     response: HealthResponse;
   };
+  "GET /api/v1/metrics": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    response: MetricsResponse;
+  };
   "GET /api/v1/model": {
     path: Record<string, never>;
     query: Record<string, never>;
@@ -63,6 +71,11 @@ export interface ApiOperations {
     path: Record<string, never>;
     query: { "asset_id"?: (number) | (null); "limit"?: number; "offset"?: number; "bbox"?: (string) | (null); "started_after"?: (string) | (null); "started_before"?: (string) | (null); };
     response: OutageCollection;
+  };
+  "GET /api/v1/ready": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    response: ReadinessResponse;
   };
   "GET /api/v1/risk/hotspots": {
     path: Record<string, never>;

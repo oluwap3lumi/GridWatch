@@ -33,6 +33,8 @@ def test_openapi_paths_references_and_serialized_defaults() -> None:
     document = app.openapi()
     assert set(document["paths"]) == {
         "/api/v1/health",
+        "/api/v1/ready",
+        "/api/v1/metrics",
         "/api/v1/assets",
         "/api/v1/assets/{asset_id}",
         "/api/v1/outages",
