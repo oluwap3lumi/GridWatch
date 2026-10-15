@@ -71,6 +71,13 @@ geography centroids. A bbox filters original asset geometries before clustering.
 
 ## Risk and model routes
 
+- `GET /model/history`: registered version records, newest training timestamp then
+  ID first, with standard `limit` (default 100, maximum 500) / `offset` pagination.
+  Includes metrics, features, provenance, and a derived quality-gate flag. Empty
+  registries return an empty page. Failed gates remain visible. These are database
+  records; the flag does not certify that artifact files still exist or validate.
+  `GET /model` continues to verify the latest passing model's artifacts.
+
 - `GET /risk/summary`: fleet and feeder totals, scored/unscored counts, band
   counts, and current scoring stamp (null until scored).
 - `GET /risk/hotspots`: paginated GeoJSON cluster centres with member asset IDs,

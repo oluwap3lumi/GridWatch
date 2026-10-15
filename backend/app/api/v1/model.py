@@ -3,14 +3,21 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import ArtifactRoot, ReadSession
+from app.api.v1.queries import Limit, Offset
 from app.core.errors import ModelUnavailable, ScoringConflict
-from app.repositories.model_runs import latest_passing_run
+from app.repositories.model_runs import latest_passing_run, model_history
 from app.repositories.risk import scoring_stamp
 from app.schemas.assets import ErrorResponse
-from app.schemas.risk import FeatureImportance, ModelInfo
+from app.schemas.risk import FeatureImportance, ModelHistory, ModelInfo
 from app.services.model_registry import registered_documents
 
 router = APIRouter(tags=["model"])
+
+
+@router.get("/model/history", response_model=ModelHistory)
+def history(session: ReadSession, limit: Limit = 100, offset: Offset = 0) -> ModelHistory:
+    """Registered run history, including failed gates; does not deserialize model files."""
+    return model_history(session, limit=limit, offset=offset)
 
 
 @router.get(

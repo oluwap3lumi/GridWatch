@@ -2,11 +2,13 @@
 
 from datetime import datetime
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.db.models import ModelRun
+from app.repositories.assets import page_metadata
 from app.repositories.seed import data_fingerprint
+from app.schemas.risk import ModelHistory, ModelVersion
 
 
 def register_run(
@@ -54,4 +56,33 @@ def latest_passing_run(session: Session) -> ModelRun | None:
         )
         .order_by(ModelRun.trained_at.desc(), ModelRun.id.desc())
         .limit(1)
+    )
+
+
+def model_history(session: Session, *, limit: int, offset: int) -> ModelHistory:
+    """Return immutable registered runs, including failed gates, newest first."""
+    total = session.scalar(select(func.count()).select_from(ModelRun)) or 0
+    runs = session.scalars(
+        select(ModelRun)
+        .order_by(ModelRun.trained_at.desc(), ModelRun.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return ModelHistory(
+        items=[
+            ModelVersion(
+                model_version=run.model_version,
+                trained_at=run.trained_at,
+                data_hash=run.data_hash,
+                git_sha=run.git_sha,
+                features=run.features,
+                metrics=run.metrics,
+                quality_gate_passed=(
+                    run.metrics.get("quality_gate_passed") == 1
+                    and run.metrics.get("pr_auc_lift", 0) > 0
+                ),
+            )
+            for run in runs
+        ],
+        pagination=page_metadata(total, limit, offset),
     )

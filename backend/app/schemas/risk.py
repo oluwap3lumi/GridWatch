@@ -88,6 +88,23 @@ class ModelInfo(ApiModel):
     scored_model_version: str | None
 
 
+class ModelVersion(ApiModel):
+    """Registered evaluation record; passing the gate does not verify artifact availability."""
+
+    model_version: str
+    trained_at: datetime
+    data_hash: str
+    git_sha: str
+    features: list[str]
+    metrics: dict[str, float | int]
+    quality_gate_passed: bool
+
+
+class ModelHistory(ApiModel):
+    items: list[ModelVersion]
+    pagination: PageMetadata
+
+
 class ArtifactHistoryConfig(BaseModel):
     horizon_days: int
     history_days: int

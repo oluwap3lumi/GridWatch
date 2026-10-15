@@ -40,6 +40,7 @@ def test_openapi_paths_references_and_serialized_defaults() -> None:
         "/api/v1/risk/hotspots",
         "/api/v1/risk/rescore",
         "/api/v1/model",
+        "/api/v1/model/history",
     }
     components = document["components"]["schemas"]
     assert "type" in components["PointGeometry"]["required"]

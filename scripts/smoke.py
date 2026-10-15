@@ -11,7 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.schemas.assets import AssetCollection, AssetDetail, OutageCollection  # noqa: E402
-from app.schemas.risk import HotspotCollection, ModelInfo, RescoreResponse, RiskSummary  # noqa: E402
+from app.schemas.risk import (  # noqa: E402
+    HotspotCollection,
+    ModelHistory,
+    ModelInfo,
+    RescoreResponse,
+    RiskSummary,
+)
 
 
 def main() -> None:
@@ -33,6 +39,11 @@ def main() -> None:
     assert model.metrics["pr_auc_lift"] > 0
     assert len(model.features) == len(model.feature_importance)
     print(f"PASS model {model.model_version}: verified provenance and SHAP importance")
+    with urlopen(f"{api}/api/v1/model/history?limit=500", timeout=30) as response:
+        history = ModelHistory.model_validate_json(response.read())
+    assert history.pagination.total > 0
+    assert len({item.model_version for item in history.items}) == len(history.items)
+    print(f"PASS registered model history: {history.pagination.total} versions")
     with urlopen(Request(f"{api}/api/v1/risk/rescore", method="POST"), timeout=180) as response:
         scored = RescoreResponse.model_validate_json(response.read())
     assert scored.model_version == model.model_version

@@ -16,7 +16,9 @@ export type HotspotCollection = { "type": "FeatureCollection"; "features": Array
 export type HotspotFeature = { "type": "Feature"; "id": number; "geometry": PointGeometry; "properties": HotspotProperties; };
 export type HotspotProperties = { "asset_count": number; "asset_ids": Array<number>; "mean_score": number; "max_score": number; "counts_by_band": BandCounts; };
 export type LineGeometry = { "type": "LineString"; "coordinates": Array<Position>; };
+export type ModelHistory = { "items": Array<ModelVersion>; "pagination": PageMetadata; };
 export type ModelInfo = { "model_version": string; "trained_at": string; "data_hash": string; "git_sha": string; "features": Array<string>; "metrics": Record<string, (number) | (number)>; "feature_importance": Array<FeatureImportance>; "explanation_space": "uncalibrated XGBoost log-odds"; "horizon_days": 30; "scored_model_version": (string) | (null); };
+export type ModelVersion = { "model_version": string; "trained_at": string; "data_hash": string; "git_sha": string; "features": Array<string>; "metrics": Record<string, (number) | (number)>; "quality_gate_passed": boolean; };
 export type OutageCollection = { "type": "FeatureCollection"; "features": Array<OutageFeature>; "pagination": PageMetadata; };
 export type OutageFeature = { "type": "Feature"; "id": number; "geometry": PointGeometry; "properties": OutageProperties; };
 export type OutageProperties = { "asset_id": number; "started_at": string; "duration_min": number; "cause": string; };
@@ -51,6 +53,11 @@ export interface ApiOperations {
     path: Record<string, never>;
     query: Record<string, never>;
     response: ModelInfo;
+  };
+  "GET /api/v1/model/history": {
+    path: Record<string, never>;
+    query: { "limit"?: number; "offset"?: number; };
+    response: ModelHistory;
   };
   "GET /api/v1/outages": {
     path: Record<string, never>;
