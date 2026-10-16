@@ -6,7 +6,7 @@ const summary: RiskSummary = { total_assets: 2, scored_assets: 0, unscored_asset
   counts_by_band: { low: 0, medium: 0, high: 0, critical: 0 }, by_feeder: [], scoring: null };
 function asset(id: number): AssetFeature {
   return { type: 'Feature', id, geometry: { type: 'Point', coordinates: [3.4, 6.5] }, properties: {
-    type: 'transformer', feeder_id: null, install_date: '2000-01-01', capacity_kva: 100, load_factor: 0.8,
+    external_id: null, pole_id: null, batch_id: null, type: 'transformer', feeder_id: null, install_date: '2000-01-01', capacity_kva: 100, load_factor: 0.8,
     material: 'steel', vegetation_index: 0.5, last_maintenance_date: '2025-01-01', risk: null } };
 }
 function respond(body: unknown) { return new Response(JSON.stringify(body), { status: 200 }); }

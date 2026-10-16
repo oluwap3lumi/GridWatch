@@ -16,6 +16,8 @@ def test_readiness_checks_postgis_migrations_and_metrics(engine: Engine) -> None
     try:
         assert database_ready(engine)
         assert request("/api/v1/ready") == (200, {"status": "ready"})
+        command.downgrade(Config("alembic.ini"), "0002")
+        assert not database_ready(engine)
         command.downgrade(Config("alembic.ini"), "0001")
         assert not database_ready(engine)
         assert request("/api/v1/ready") == (503, {"status": "not_ready"})

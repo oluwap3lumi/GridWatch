@@ -5,9 +5,9 @@ import { fixtureAsset, fleetFixture } from './fixtures';
 
 const adapter = vi.hoisted(() => ({ callbacks: new globalThis.Map<string, (event?: unknown) => void>(),
   sources: new globalThis.Map<string, { setData: ReturnType<typeof vi.fn> }>(), layers: [] as { id: string; paint: Record<string, unknown> }[],
-  remove: vi.fn(), fit: vi.fn(), onSelect: vi.fn() }));
+  remove: vi.fn(), fit: vi.fn(), extend: vi.fn(), onSelect: vi.fn() }));
 vi.mock('maplibre-gl', () => ({
-  setWorkerUrl: vi.fn(), NavigationControl: class {}, LngLatBounds: class { extend() { return this; } },
+  setWorkerUrl: vi.fn(), NavigationControl: class {}, LngLatBounds: class { extend(point: unknown) { adapter.extend(point); return this; } },
   Map: class {
     addControl() {} on(event: string, callback: (event?: unknown) => void) { adapter.callbacks.set(event, callback); }
     addSource(id: string) { adapter.sources.set(id, { setData: vi.fn() }); }
@@ -19,6 +19,13 @@ vi.mock('maplibre-gl', () => ({
   },
 }));
 beforeEach(() => { adapter.callbacks.clear(); adapter.sources.clear(); adapter.layers.length = 0; vi.clearAllMocks(); });
+it('fits every position in a multipart feeder without passing nested parts as positions', () => {
+  const feeder = fixtureAsset(5, null, 'feeder');
+  feeder.geometry = { type: 'MultiLineString', coordinates: [[[3.3, 6.5], [3.4, 6.5]], [[3.5, 6.5], [3.6, 6.5]]] };
+  render(<Map assets={[feeder]} hotspots={[]} selected={null} onSelect={adapter.onSelect} />);
+  act(() => adapter.callbacks.get('load')?.());
+  expect(adapter.extend.mock.calls).toEqual([[[3.3, 6.5]], [[3.4, 6.5]], [[3.5, 6.5]], [[3.6, 6.5]]]);
+});
 it('renders risk layers, updates filters and selection, routes map clicks, and removes the map', () => {
   const asset = fixtureAsset(2, 0.12);
   const view = render(<Map assets={[asset]} hotspots={fleetFixture.hotspots} selected={null} onSelect={adapter.onSelect} />);

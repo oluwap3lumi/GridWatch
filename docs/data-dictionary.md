@@ -1,6 +1,25 @@
 # Data dictionary
 
-Only synthetic or public data is permitted. Demo data originates in `data/generator`.
+M8 slice 1 adds private runtime import foundations (see [uploads](uploads.md)):
+
+| Table | Purpose and important fields |
+| --- | --- |
+| `import_batches` | UUID, filename, detected nullable format, layer type, lifecycle status, row counts JSONB, columns/mapping, detected/selected CRS, created/completed/expiry timestamps, error report JSONB |
+| `import_jobs` | UUID, batch FK, operation, queue status, processed/total counts, attempts, lease token/deadline, options, fixed error code, created/completed timestamps |
+| `import_rows` | Batch/row-number key, private source/normalised JSONB, EPSG:4326 geometry, validity and error/warning lists; temporary staging |
+| `import_changes` | Batch/asset key, insert/update operation, nullable before-image, resulting asset revision; persistent undo journal without an asset FK so inserted records can be removed |
+
+Assets gain `external_id` (unique within type), nullable `pole_id`, unresolved
+`external_feeder_id`/`external_pole_id`, creating `batch_id`, `last_batch_id`, and
+an incrementing `revision`. Type guards protect feeder and pole references.
+Point assets may be unassigned; feeders accept LineString/MultiLineString.
+Source attributes (installation/maintenance dates, capacity, load, material,
+vegetation) are nullable rather than fabricated. Scoring defaults and imported
+inference are implemented in a later M8 slice. The older sections below describe
+the synthetic corpus, whose generated attributes remain complete.
+
+Committed data must be synthetic or public. Demo data originates in `data/generator`.
+Private user uploads are allowed at runtime and stay on their deployment.
 
 All geometry uses EPSG:4326 and explicit GiST indexes. Feeder assets
 are LineStrings; transformers and poles are Points. `assets.feeder_id` links point

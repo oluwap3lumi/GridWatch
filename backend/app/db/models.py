@@ -1,9 +1,23 @@
 """Typed SQLAlchemy models for the build-plan schema; Alembic owns all DDL."""
 
 from datetime import date, datetime
+from uuid import UUID
 
 from geoalchemy2 import Geometry, WKBElement
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Float, ForeignKey, Index, String
+from pydantic import JsonValue
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Uuid,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -26,26 +40,44 @@ class Asset(Base):
         CheckConstraint("last_maintenance_date >= install_date", name="ck_assets_maintenance"),
         CheckConstraint("ST_IsValid(geom) AND NOT ST_IsEmpty(geom)", name="ck_assets_valid_geom"),
         CheckConstraint(
-            "(type = 'feeder' AND GeometryType(geom) = 'LINESTRING' AND feeder_id IS NULL) OR "
+            "(type = 'feeder' AND GeometryType(geom) IN ('LINESTRING','MULTILINESTRING') "
+            "AND feeder_id IS NULL AND pole_id IS NULL) OR "
             "(type IN ('transformer', 'pole') AND GeometryType(geom) = 'POINT' "
-            "AND feeder_id IS NOT NULL)",
+            "AND (type = 'transformer' OR pole_id IS NULL))",
             name="ck_assets_geometry_and_parent",
         ),
         Index("ix_assets_geom", "geom", postgresql_using="gist"),
         Index("ix_assets_type", "type"),
         Index("ix_assets_feeder_id", "feeder_id"),
+        Index("ix_assets_pole_id", "pole_id"),
+        Index("ix_assets_batch_id", "batch_id"),
+        Index("ix_assets_last_batch_id", "last_batch_id"),
+        Index("ix_assets_external_id", "type", "external_id", unique=True),
+        CheckConstraint("revision >= 0", name="ck_assets_revision"),
+        CheckConstraint(
+            "external_id IS NULL OR length(btrim(external_id)) > 0", name="ck_assets_external_id"
+        ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, server_default=text("nextval('asset_id_seq'::regclass)")
+    )
     type: Mapped[str] = mapped_column(String(20))
     feeder_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"))
+    pole_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"))
+    external_id: Mapped[str | None] = mapped_column(String(255))
+    external_feeder_id: Mapped[str | None] = mapped_column(String(255))
+    external_pole_id: Mapped[str | None] = mapped_column(String(255))
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"))
+    last_batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"))
+    revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
     geom: Mapped[WKBElement] = mapped_column(Geometry("GEOMETRY", srid=4326, spatial_index=False))
-    install_date: Mapped[date]
-    capacity_kva: Mapped[float] = mapped_column(Float)
-    load_factor: Mapped[float] = mapped_column(Float)
-    material: Mapped[str] = mapped_column(String(30))
-    vegetation_index: Mapped[float] = mapped_column(Float)
-    last_maintenance_date: Mapped[date]
+    install_date: Mapped[date | None]
+    capacity_kva: Mapped[float | None] = mapped_column(Float)
+    load_factor: Mapped[float | None] = mapped_column(Float)
+    material: Mapped[str | None] = mapped_column(String(30))
+    vegetation_index: Mapped[float | None] = mapped_column(Float)
+    last_maintenance_date: Mapped[date | None]
 
 
 class OutageEvent(Base):
@@ -129,3 +161,125 @@ class RiskScore(Base):
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     prediction_cutoff: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     top_factors: Mapped[list[dict[str, str | float]]] = mapped_column(JSONB)
+
+
+class ImportBatch(Base):
+    """Private import history; preview/row data lives in expiring staged rows."""
+
+    __tablename__ = "import_batches"
+    __table_args__ = (
+        CheckConstraint("format IN ('csv','shapefile','geojson')", name="ck_import_batches_format"),
+        CheckConstraint(
+            "layer_type IN ('transformer','pole','feeder_line')", name="ck_import_batches_layer"
+        ),
+        CheckConstraint(
+            "status IN ('uploaded','validated','imported','failed','rolled_back')",
+            name="ck_import_batches_status",
+        ),
+        Index("ix_import_batches_created_at", "created_at"),
+        Index("ix_import_batches_expires_at", "expires_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    filename: Mapped[str] = mapped_column(String(512))
+    format: Mapped[str | None] = mapped_column(String(16))
+    layer_type: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16), server_default="uploaded")
+    row_counts: Mapped[dict[str, JsonValue]] = mapped_column(
+        JSONB,
+        server_default=text(
+            "jsonb_build_object('total',0,'valid',0,'invalid',0,'inserted',0,'updated',0)"
+        ),
+    )
+    detected_columns: Mapped[list[str]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+    column_mapping: Mapped[dict[str, str]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    crs_detected: Mapped[str | None] = mapped_column(String(4096))
+    crs_selected: Mapped[str | None] = mapped_column(String(4096))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    error_report: Mapped[dict[str, JsonValue]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+
+
+class ImportJob(Base):
+    """Durable job state; leases allow a separate worker to recover interrupted tasks."""
+
+    __tablename__ = "import_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "operation IN ('inspect','validate','commit','rollback','rescore','cleanup')",
+            name="ck_import_jobs_operation",
+        ),
+        CheckConstraint(
+            "status IN ('queued','running','completed','failed')", name="ck_import_jobs_status"
+        ),
+        CheckConstraint(
+            "processed >= 0 AND total >= 0 AND processed <= total AND attempts >= 0",
+            name="ck_import_jobs_progress",
+        ),
+        Index("ix_import_jobs_queue", "status", "created_at"),
+        Index("ix_import_jobs_batch_id", "batch_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    batch_id: Mapped[UUID] = mapped_column(ForeignKey("import_batches.id", ondelete="CASCADE"))
+    operation: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16), server_default="queued")
+    processed: Mapped[int] = mapped_column(Integer, server_default="0")
+    total: Mapped[int] = mapped_column(Integer, server_default="0")
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    options: Mapped[dict[str, JsonValue]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ImportRow(Base):
+    """Expiring staged content, never logged; removed after commit/rollback/expiry."""
+
+    __tablename__ = "import_rows"
+    __table_args__ = (CheckConstraint("row_number > 0", name="ck_import_rows_number"),)
+    batch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("import_batches.id", ondelete="CASCADE"), primary_key=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[dict[str, JsonValue]] = mapped_column(JSONB)
+    normalized: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB)
+    geom: Mapped[WKBElement | None] = mapped_column(
+        Geometry("GEOMETRY", srid=4326, spatial_index=False)
+    )
+    valid: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    errors: Mapped[list[dict[str, JsonValue]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb")
+    )
+    warnings: Mapped[list[dict[str, JsonValue]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb")
+    )
+
+
+class ImportChange(Base):
+    """Persistent undo journal; asset_id intentionally survives deletion of an inserted asset."""
+
+    __tablename__ = "import_changes"
+    __table_args__ = (
+        CheckConstraint("operation IN ('insert','update')", name="ck_import_changes_operation"),
+        CheckConstraint("after_revision > 0", name="ck_import_changes_revision"),
+        CheckConstraint(
+            "(operation = 'insert' AND before IS NULL) OR "
+            "(operation = 'update' AND before IS NOT NULL)",
+            name="ck_import_changes_before",
+        ),
+    )
+    batch_id: Mapped[UUID] = mapped_column(ForeignKey("import_batches.id"), primary_key=True)
+    asset_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    operation: Mapped[str] = mapped_column(String(16))
+    before: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB(none_as_null=True))
+    after_revision: Mapped[int] = mapped_column(BigInteger)

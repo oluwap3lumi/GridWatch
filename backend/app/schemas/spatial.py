@@ -19,7 +19,20 @@ class LineGeometry(ApiModel):
     coordinates: list[Position] = Field(min_length=2)
 
 
-type AssetGeometry = Annotated[PointGeometry | LineGeometry, Field(discriminator="type")]
+class MultiLineGeometry(ApiModel):
+    type: Literal["MultiLineString"] = "MultiLineString"
+    coordinates: list[list[Position]] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def nonempty_parts(self) -> "MultiLineGeometry":
+        if any(len(part) < 2 for part in self.coordinates):
+            raise ValueError("Each line part requires at least two positions")
+        return self
+
+
+type AssetGeometry = Annotated[
+    PointGeometry | LineGeometry | MultiLineGeometry, Field(discriminator="type")
+]
 
 
 class BoundingBox(BaseModel):

@@ -117,7 +117,17 @@ gridwatch/
 - README with screenshots, a GIF, architecture diagram, quickstart, and a "How AI was used to build this" section. Data dictionary and model card. Licence. Optional live deployment.
 - **Done when:** a stranger can run it from the README in under 10 minutes.
 
+### M8: User uploads (approved after M7)
+
+Implement in reviewed slices: policy/schema/contracts;
+parsers and validation; durable import/rollback/retention lifecycle; inference
+integration; Upload UI; synthetic samples, documentation, and clean-clone/CI checks.
+Private runtime uploads stay on their deployment; all committed artifacts remain
+synthetic or public. Dependencies approved: python-multipart, pyshp, pyproj,
+Shapely 2.x. No Fiona, pyogrio, GeoPandas, or new frontend packages for M8.
+
 ### Stretch
+
 - Time-slider replay of outages, scheduled retraining, drift check, role-based auth, a what-if panel (change load or vegetation and see the risk shift).
 
 ## 6. Working agreement

@@ -16,6 +16,10 @@ def database_ready(engine: Engine) -> bool:
               AND to_regclass('public.outage_events') IS NOT NULL
               AND to_regclass('public.weather_obs') IS NOT NULL
               AND to_regclass('public.model_runs') IS NOT NULL
+              AND to_regclass('public.import_batches') IS NOT NULL
+              AND to_regclass('public.import_jobs') IS NOT NULL
+              AND to_regclass('public.import_rows') IS NOT NULL
+              AND to_regclass('public.import_changes') IS NOT NULL
               AND EXISTS (SELECT 1 FROM information_schema.columns
                 WHERE table_schema = 'public' AND table_name = 'risk_scores'
                   AND column_name = 'prediction_cutoff')

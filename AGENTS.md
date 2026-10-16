@@ -5,7 +5,7 @@ GridWatch is a full-stack infrastructure risk predictor. It scores electricity-d
 Read this file and `docs/BUILD_PLAN.md` before every task.
 
 ## Hard rules
-1. **Synthetic or public data only.** Never add real utility, customer, or employer data to this repo. All demo data comes from `data/generator`.
+1. **Repository data must be synthetic or public.** Everything committed (samples, fixtures, tests, screenshots, and docs) must use synthetic or public data. Demo data comes from `data/generator`. At runtime, users may upload their own data; it stays on their deployment. Upload/staging directories must be gitignored. Logs must never contain uploaded row contents or coordinates: import logs contain only counts, batch IDs, and fixed error/event codes. Delete staged files after commit, rollback, or configurable TTL expiry. Deployers are responsible for access control because GridWatch has no real authentication; state this in the README.
 2. **No secrets in git.** Config comes from environment variables. Keep `.env.example` up to date.
 3. **Work in small slices.** One milestone task at a time. After each slice: run lint, type-check, and tests, then fix failures before moving on.
 4. **Ask before adding a dependency.** State what it is for and why the standard library or an existing dependency is not enough.
@@ -15,7 +15,8 @@ Read this file and `docs/BUILD_PLAN.md` before every task.
 
 ## Stack
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 + GeoAlchemy2, Alembic, PostgreSQL 16 + PostGIS 3
-- **ML:** pandas, geopandas, scikit-learn, XGBoost, SHAP, joblib (file-based model registry in `ml/artifacts/`)
+- **ML:** pandas, scikit-learn, XGBoost, SHAP, joblib (file-based model registry in `ml/artifacts/`)
+- **M8 imports (approved):** python-multipart, pyshp, pyproj, Shapely 2.x. No Fiona, pyogrio, GeoPandas, or new frontend dependencies.
 - **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query, Vitest
 - **Tooling:** uv (or pip-tools), ruff, mypy, pytest, pre-commit, Docker Compose, GitHub Actions, Makefile
 

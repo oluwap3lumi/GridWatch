@@ -9,7 +9,7 @@ full-stack portfolio project. Rank transformers by 30-day failure probability,
 inspect signed SHAP factors and outage history, compare model versions, and
 rescore the fleet without restarting the app.
 
-All assets, weather, and outages are invented by [the generator](data/generator).
+All committed demo assets, weather, and outages are invented by [the generator](data/generator).
 The Lagos-area coordinates represent a fictional network. Scores are historical
 demo predictions, not live forecasts or maintenance guidance.
 
@@ -143,6 +143,11 @@ Receipts and clones remain ignored under `.tooling/`.
 API and web bind to loopback; the database has no host port. Keep `.env` out of
 Git. Compose uses Vite's development server for this local demo. Live hosting,
 authentication, and persistent monitoring are outside this release.
+M8 is adding private runtime uploads. User data stays on the deployment and must
+never be committed, included in screenshots, or logged as row contents/coordinates.
+**Deployers are responsible for access control: GridWatch has no real authentication.**
+Staged uploads are subject to configurable retention and deletion after commit,
+rollback, or expiry; these lifecycle operations are being implemented in M8.
 If a port is occupied, change `API_PORT`/`WEB_PORT` in `.env` and rerun `make up`.
 Export matching shell values when running `make smoke` with nondefault ports.
 If image downloads fail with a registry/network error, retry after connectivity

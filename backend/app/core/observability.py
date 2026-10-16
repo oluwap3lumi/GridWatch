@@ -8,12 +8,13 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from threading import Lock
 from time import perf_counter
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI
 from starlette.routing import compile_path
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.import_logging import ImportError, ImportEvent
 from app.schemas.operations import MetricsResponse, RouteMetric
 
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
@@ -25,6 +26,35 @@ class JsonFormatter(logging.Formatter):
     """Never include request bodies, query strings, headers, or exception text."""
 
     def format(self, record: logging.LogRecord) -> str:
+        # Never interpolate import messages, exceptions, filenames, or arbitrary extras.
+        if record.name.startswith(
+            (
+                "gridwatch.import",
+                "shapefile",
+                "shapely",
+                "pyproj",
+                "python_multipart",
+                "multipart",
+                "sqlalchemy",
+            )
+        ):
+            safe: dict[str, str | int] = {"event": "IMPORT_EVENT"}
+            if (
+                isinstance(record.msg, str)
+                and record.msg in {event.value for event in ImportEvent}
+                and not record.args
+            ):
+                safe["event"] = str(record.msg)
+            batch_id = getattr(record, "batch_id", None)
+            if isinstance(batch_id, UUID):
+                safe["batch_id"] = str(batch_id)
+            count = getattr(record, "count", None)
+            if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+                safe["count"] = count
+            error_code = getattr(record, "error_code", None)
+            if isinstance(error_code, ImportError):
+                safe["error_code"] = error_code.value
+            return json.dumps(safe)
         event: dict[str, str | int | float | None] = {
             "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
             "level": record.levelname,

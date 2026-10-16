@@ -18,6 +18,19 @@ function show(refresh = vi.fn(), selected = asset) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+it('shows missing imported attributes as unknown without inventing source values', async () => {
+  const selected = fixtureAsset(9, null);
+  selected.properties = { ...selected.properties, feeder_id: null, install_date: null,
+    last_maintenance_date: null, capacity_kva: null, load_factor: null, material: null,
+    vegetation_index: null };
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ asset: selected,
+    outages: { type: 'FeatureCollection', features: [], pagination: { total: 0, limit: 10, offset: 0, next_offset: null } } }))));
+  show(vi.fn(), selected);
+  expect(screen.getAllByText('Unknown')).toHaveLength(6);
+  expect(screen.getByText('Unassigned')).toBeInTheDocument();
+  expect(await screen.findByText('No outage events recorded for this asset.')).toBeInTheDocument();
+});
+
 it('shows signed explanations immediately, loads history, and paginates older and newer outages', async () => {
   const fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify(detail(url.includes('offset=10') ? 10 : 0))));
   vi.stubGlobal('fetch', fetchMock);

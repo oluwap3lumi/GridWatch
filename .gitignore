@@ -12,3 +12,10 @@ dist/
 ml/artifacts/*
 !ml/artifacts/.gitkeep
 .tooling/
+/uploads/
+/staging/
+/data/uploads/
+/data/staging/
+/backend/uploads/
+uploads/
+staging/

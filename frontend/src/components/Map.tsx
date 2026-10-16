@@ -17,7 +17,7 @@ function fit(map: MapLibreMap, assets: AssetFeature[], maxZoom = 12) {
   if (!assets.length) return;
   const bounds = new LngLatBounds();
   for (const asset of assets) {
-    const coords = asset.geometry.type === 'Point' ? [asset.geometry.coordinates] : asset.geometry.coordinates;
+    const coords = asset.geometry.type === 'Point' ? [asset.geometry.coordinates] : asset.geometry.type === 'MultiLineString' ? asset.geometry.coordinates.flat() : asset.geometry.coordinates;
     for (const coord of coords) bounds.extend(coord);
   }
   map.fitBounds(bounds, { padding: 65, maxZoom, duration: 0 });

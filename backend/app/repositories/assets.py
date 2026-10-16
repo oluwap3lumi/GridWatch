@@ -55,6 +55,9 @@ def asset_feature(asset: Asset, risk: RiskScore | None, geometry: str) -> AssetF
         properties=AssetProperties(
             type=AssetKind(asset.type),
             feeder_id=asset.feeder_id,
+            external_id=asset.external_id,
+            pole_id=asset.pole_id,
+            batch_id=str(asset.batch_id) if asset.batch_id else None,
             install_date=asset.install_date,
             capacity_kva=asset.capacity_kva,
             load_factor=asset.load_factor,

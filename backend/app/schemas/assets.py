@@ -43,12 +43,15 @@ class RiskSnapshot(ApiModel):
 class AssetProperties(ApiModel):
     type: AssetKind
     feeder_id: int | None
-    install_date: date
-    capacity_kva: FiniteFloat
-    load_factor: FiniteFloat
-    material: str
-    vegetation_index: FiniteFloat
-    last_maintenance_date: date
+    external_id: str | None = None
+    pole_id: int | None = None
+    batch_id: str | None = None
+    install_date: date | None
+    capacity_kva: FiniteFloat | None
+    load_factor: FiniteFloat | None
+    material: str | None
+    vegetation_index: FiniteFloat | None
+    last_maintenance_date: date | None
     risk: RiskSnapshot | None
 
 

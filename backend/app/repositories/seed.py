@@ -21,13 +21,20 @@ class SeedResult:
 
 
 def data_fingerprint(session: Session) -> str:
-    """Hash complete persisted rows in stable ID order, including geometry and UTC times."""
+    """Hash persisted source values in ID order; import bookkeeping is not model input."""
     session.execute(text("SET LOCAL TIME ZONE 'UTC'"))
     digest = hashlib.sha256()
     for table in ("assets", "weather_obs", "outage_events"):
         digest.update((table + "\n").encode())
         # Table names are a fixed allowlist, never input from users or the generator.
-        records = session.execute(text(f"SELECT to_jsonb(d)::text FROM {table} d ORDER BY id"))
+        # New import bookkeeping is not model input. Preserve existing model hashes.
+        projection = (
+            "(to_jsonb(d) - ARRAY['external_id','external_feeder_id','external_pole_id',"
+            "'pole_id','batch_id','last_batch_id','revision'])::text"
+            if table == "assets"
+            else "to_jsonb(d)::text"
+        )
+        records = session.execute(text(f"SELECT {projection} FROM {table} d ORDER BY id"))
         for value in records.scalars():
             digest.update(value.encode("utf-8") + b"\n")
     return digest.hexdigest()
@@ -117,6 +124,7 @@ def replace_demo_data(session: Session, dataset: SyntheticDataset) -> SeedResult
     expected = (len(dataset.assets), len(dataset.weather), len(dataset.outages))
     if counts != expected:
         raise RuntimeError(f"Loaded counts {counts} do not match generated counts {expected}")
+    session.execute(text("SELECT setval('asset_id_seq', (SELECT max(id) FROM assets) + 1, false)"))
     return SeedResult(
         *counts, data_hash=dataset.data_hash(), database_hash=data_fingerprint(session)
     )
