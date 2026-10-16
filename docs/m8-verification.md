@@ -296,8 +296,7 @@ scrolling. The screenshot containers, staging volume and task browser were remov
 | `git diff --check` | Passed |
 
 Initial lint runs caught line length/formatting in the new acceptance helper;
-both were fixed before the passing run. The clean-clone receipt and hosted CI
-results will be recorded after committed-source verification finishes.
+both were fixed before the passing run.
 
 The first hosted run (`6270b69`) correctly rejected the Shapefile ZIP regeneration:
 Python's ZIP creator-system default differs on Windows and Linux. The generator
@@ -306,3 +305,57 @@ The regenerated archive passes `--check` on both systems; all six sample unit
 tests pass on Windows and Linux, and the real PostGIS six-batch sample flow passes
 again with the corrected ZIP. The old clean-clone rehearsal was stopped and its
 own containers/volumes removed so a fresh run can verify the corrected commit.
+
+Hosted source verification is green for `4fbe3ea`:
+[M8 CI run 38916821562](https://github.com/oluwap3lumi/GridWatch/actions/runs/38916821562).
+Linux passed 131 unit tests (including the symlink case), 63 PostGIS integration
+tests and 36 frontend tests; lint/types, sample regeneration, production/Docker
+builds, generated-type drift, two-run training reproducibility, stack smoke and
+sample-upload acceptance also passed. Acceptance reported three formats, six
+batches, 18 inserted assets, no duplicate inserts and four invalid rows, with
+3,018 assets scored before complete undo restored the original 3,000-asset score
+bands. Every hosted step, including cleanup, completed successfully.
+
+The regular demo was rebuilt with `make up` from the final source and all four
+services are healthy. No new dependency was added in slice 6.
+
+Final clean-clone verification also passed on `4fbe3ea`. The receipt is
+`.tooling/clean-clone-verification.json`, with `status=passed` and isolated project
+`gridwatch-clean-f6465f87`; the complete local log is ignored at
+`.tooling/m8-clean-final.log`. The rehearsal used a fresh clone and disposable
+credentials, artifact directory, database and staging volumes, and ports
+18000/15173. It ran:
+
+```text
+make setup
+make up
+make seed
+make train
+make test
+make lint
+make build
+make smoke
+uv run --project backend python -m data.generator.samples --check
+uv run --project backend python scripts/upload_acceptance.py
+```
+
+The acceptance helper's `GRIDWATCH_UPLOAD_ACCEPTANCE_URL` was set only for that
+isolated deployment. The clone passed 130 Windows unit tests (one symlink skip),
+63 real PostGIS integration tests and 36 frontend tests, plus all lint/type/build
+checks. Seed loaded 3,000 assets, 14,600 weather observations and 4,608 outages.
+Training preserved database hash
+`7f0b3405a1a2579434e09f298dc5cc30e69f171d9fd21b798d903cd15a50c6f9`;
+smoke verified the model/artifacts, original score bands and 41 hotspots.
+Local upload acceptance passed the same six-batch/3,018-score flow as hosted CI.
+The database outage check observed liveness 200, readiness 503, then recovered
+readiness 200. The helper removed its own containers, network, database and staging
+volumes and exited successfully. The regular demo was not seeded or imported into.
+
+An earlier local rehearsal hit a Docker startup failure during concurrent builds.
+The unchanged startup command passed on retry; a fresh full rehearsal was then
+run successfully with retained logs. Failed/stopped rehearsals are not counted
+as passing results. All disposable diagnostic projects were removed.
+
+M8's six approved slices are complete. Runtime uploads remain deployment-local;
+all samples, fixtures, documentation and screenshots remain synthetic/public.
+No new milestone is started by this verification.
