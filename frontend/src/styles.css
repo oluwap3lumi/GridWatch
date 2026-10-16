@@ -176,6 +176,8 @@ footer { padding-top: 23px; border-top: 1px solid #dce5df; margin-top: 22px; col
 .upload-page th, .upload-page td { padding: 12px; border-bottom: 1px solid #d4e0d7; text-align: left; min-width: 95px; max-width: 300px; overflow-wrap: anywhere; }
 .upload-page td small { display: block; margin-top: 6px; }
 .upload-page td button { margin: 4px; }
+.import-workspace th:last-child, .import-workspace td:last-child { min-width: 320px; }
+.import-workspace td:last-child p { margin: 0 0 6px; line-height: 1.5; }
 .invalid-row { background: #fff3ef; }
 .invalid-cell { background: #ffddd3; outline: 1px solid #c86555; outline-offset: -1px; }
 .import-mini-map { height: 280px; border-radius: 8px; overflow: hidden; }

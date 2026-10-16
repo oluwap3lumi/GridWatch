@@ -65,6 +65,12 @@ def main() -> None:
         for target in ("setup", "up", "seed", "train", "test", "lint", "build", "smoke"):
             run(make, target)
             completed.append(f"make {target}")
+        uv = shutil.which("uv")
+        assert uv is not None
+        run(uv, "run", "--project", "backend", "python", "-m", "data.generator.samples", "--check")
+        env["GRIDWATCH_UPLOAD_ACCEPTANCE_URL"] = f"http://localhost:{api_port}"
+        run(uv, "run", "--project", "backend", "python", "scripts/upload_acceptance.py")
+        completed.append("synthetic samples and upload acceptance")
         run(docker, "compose", "stop", "db")
         with urlopen(f"http://localhost:{api_port}/health", timeout=10) as response:
             assert response.status == 200

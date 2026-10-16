@@ -44,6 +44,8 @@ jobs:
           Path('.env').write_text(Path('.env.example').read_text().replace('change-me-local-only', password))
           PY
       - run: make lint
+      - name: Verify generator-backed synthetic upload samples
+        run: uv run --project backend python -m data.generator.samples --check
       - run: make test
       - run: make build
       - name: Verify generated API types
@@ -58,6 +60,10 @@ jobs:
           make train
           make verify-train
           make smoke
+      - name: Upload sample acceptance (synthetic CI deployment only)
+        env:
+          GRIDWATCH_UPLOAD_ACCEPTANCE_URL: http://localhost:8000
+        run: uv run --project backend python scripts/upload_acceptance.py
       - name: Stack diagnostics on failure
         if: failure()
         run: docker compose logs --no-color

@@ -9,6 +9,10 @@ full-stack portfolio project. Rank transformers by 30-day failure probability,
 inspect signed SHAP factors and outage history, compare model versions, and
 rescore the fleet without restarting the app.
 
+Upload your own transformer CSV or pole/transformer/feeder Shapefile or GeoJSON,
+map columns, validate before committing, and explore imported estimates. Runtime
+uploads stay on your deployment; repository examples remain synthetic.
+
 All committed demo assets, weather, and outages are invented by [the generator](data/generator).
 The Lagos-area coordinates represent a fictional network. Scores are historical
 demo predictions, not live forecasts or maintenance guidance.
@@ -27,6 +31,20 @@ demo predictions, not live forecasts or maintenance guidance.
 ![Selected transformer with signed SHAP factors](docs/images/asset-detail.png)
 
 ![Model evaluation with baseline comparison and version provenance](docs/images/model.png)
+
+## Upload your network
+
+Open **Upload** after seeding, training, and rescoring the demo. Start with the
+[synthetic samples](data/samples/README.md): transformers CSV, poles GeoJSON or
+projected Shapefile, feeder lines GeoJSON, and a deliberately broken CSV. Map the
+columns, review errors and the geometry preview, and explicitly choose partial
+success if needed. Commit, optionally rescore, and choose **View on map**. History
+supports stable re-imports and confirmed rollback in reverse dependency order.
+See [formats, CRS, limits, and QGIS/ArcGIS preparation](docs/uploads.md).
+
+![Upload form with layer choice and supported formats](docs/images/upload.png)
+
+![Synthetic CSV validation with geometry preview and row warnings](docs/images/upload-preview.png)
 
 ## Quickstart
 
@@ -55,7 +73,7 @@ location is `C:\Program Files (x86)\GnuWin32\bin`; add it to PATH and open a new
 terminal. On Linux/macOS the Makefile uses `python3`; on Windows it uses `python`.
 Use `make PYTHON=python3 up` to override the task-runner interpreter if needed.
 
-`make up` waits for the database, migrated API, and web to be healthy. No map token,
+`make up` waits for the database, migrated API, web, and import worker to be healthy. No map token,
 external tiles, paid account, or real utility data is required. A WebGL-capable
 browser renders the map; the ranked list also supports asset selection.
 Initial image downloads depend on your connection; see the measured rehearsal
@@ -66,6 +84,9 @@ and cache conditions in [M7 verification](docs/m7-verification.md).
 ```mermaid
 flowchart LR
   Generator[Synthetic generator] --> DB[(PostgreSQL 16 / PostGIS 3)]
+  Upload[Deployment-local uploads] --> Staging[Private staging / TTL]
+  Staging --> Worker[Durable import worker / validation / undo]
+  Worker --> DB
   DB --> Snapshot[Repository snapshot + data hash]
   Snapshot --> ML[Pure features / temporal training / calibration]
   ML --> Registry[Versioned artifacts + model_runs]
@@ -118,8 +139,13 @@ Docker must be running for integration tests. Their generated password, tmpfs
 database, and Compose profile are separate from your demo database.
 GitHub Actions runs these checks, verifies generated-type drift, builds/starts
 Docker, trains twice, verifies reproducibility, and rescoring-tests the stack.
+It also checks sample regeneration and imports all sample formats, verifies
+idempotency/relationships/error reports, scores 3,018 assets, and undoes the
+batches before restoring the original 3,000-asset scores.
 `make verify-clean` rehearses the development workflow in a fresh local clone
-with separate ports and disposable volumes, including database outage and recovery.
+with separate ports and disposable volumes, including sample-upload acceptance
+and database outage/recovery. It requires committed sources and never seeds or
+imports into the regular demo.
 Receipts and clones remain ignored under `.tooling/`.
 
 ## Data, versions, and operations
@@ -143,7 +169,7 @@ Receipts and clones remain ignored under `.tooling/`.
 API and web bind to loopback; the database has no host port. Keep `.env` out of
 Git. Compose uses Vite's development server for this local demo. Live hosting,
 authentication, and persistent monitoring are outside this release.
-M8 is adding private runtime uploads. User data stays on the deployment and must
+M8 supports private runtime uploads. User data stays on the deployment and must
 never be committed, included in screenshots, or logged as row contents/coordinates.
 **Deployers are responsible for access control: GridWatch has no real authentication.**
 Staged uploads are subject to configurable retention and deletion after commit,
@@ -173,17 +199,18 @@ approvals and explicit decisions on dependencies, prediction horizon, schema
 extensions, risk thresholds, and licensing. Verification commands and results
 are recorded in the milestone notes; screenshots capture the running synthetic
 demo. AI assistance does not validate the model for real infrastructure use.
-M8 continues in reviewed slices: AI assistance covers private-upload foundations,
+M8 was built in reviewed slices: AI assistance covers private-upload foundations,
 format parsing, CRS handling, durable jobs, transactional upserts/undo, retention,
 inference provenance, explicit scoring defaults, the Upload workflow and interaction tests,
-and adversarial validation tests. Runtime user data
+generator-backed samples, synthetic-only screenshots, clean-clone/CI upload
+acceptance, and adversarial validation tests. Runtime user data
 is kept out of committed fixtures, documentation, screenshots, and logs.
 
 ## Documentation and licence
 
 [Data dictionary](docs/data-dictionary.md) · [Model card](docs/model-card.md) ·
 [API contract](docs/api.md) · [Build plan](docs/BUILD_PLAN.md) ·
-[M7 verification](docs/m7-verification.md)
+[M7 verification](docs/m7-verification.md) · [M8 verification](docs/m8-verification.md)
 
 Code is licensed under [MIT](LICENSE). Third-party packages retain their own
 licences. Demo data is generated locally; no customer, employer, or utility records

@@ -252,3 +252,49 @@ required calling the existing `npm.cmd` launcher; no tool/dependency was install
 Slice 6 remains: generator sample files (including projected Shapefile and broken
 input), published synthetic screenshots, documentation polish, clean-clone
 acceptance, and hosted M8 CI. This slice does not claim hosted CI verification.
+
+## Slice 6: Samples, documentation and release verification
+
+`data/generator/samples.py` derives all upload examples from the existing asset
+generator, with fixed seed/configuration, stable cross-layer IDs, bounded sample
+loads, fixed DBF dates and fixed ZIP metadata. `data/samples/` contains eight
+transformers as CSV, eight poles as GeoJSON and EPSG:32631 Shapefile, two feeder
+lines as GeoJSON, and a deliberately broken CSV with one valid/four invalid rows.
+The broken rows exercise zero coordinates, bad date/capacity, and duplicate IDs.
+Samples are synthetic, reproducible, and covered by the repository MIT licence.
+
+The new unit checks parse every sample, verify exact regeneration bytes and
+projected geometry round trips. A real PostGIS integration flow imports all
+layers, resolves waiting parents, upserts the matching Shapefile/CSV records,
+accepts only the valid broken-file row, then reverses all six batches to zero
+assets. It confirms 18 inserted assets with no duplicate inserts.
+
+`scripts/upload_acceptance.py` provides an HTTP/worker acceptance check for an
+explicitly selected fresh, seeded/scored loopback test deployment. It refuses
+prior import history and checks all sample formats, idempotency, parent links,
+partial-consent enforcement, full downloadable errors, 3,018 scored assets,
+dependency conflicts, complete reverse rollback and restored 3,000-asset score
+bands. The CI workflow runs this after its existing seed/train/smoke flow and
+checks sample regeneration. `make verify-clean` runs it inside its isolated
+committed-source clone as well, before database outage/recovery checks.
+
+README, upload guide, data dictionary, API notes and architecture now describe the
+finished feature. Preparation instructions link to official QGIS and Esri export/
+projection documentation. Two published Upload screenshots were captured from a
+separate disposable deployment using only the generated transformer CSV. Browser
+checks passed without exceptions; captures were visually inspected. Warning-cell
+widths were adjusted to keep multi-column previews readable with local horizontal
+scrolling. The screenshot containers, staging volume and task browser were removed.
+
+| Command run | Result |
+| --- | --- |
+| `uv run --project backend python -m data.generator.samples --check` | All five committed sample files match deterministic generator output |
+| `make lint` | Ruff/format (114 files), strict mypy (81 sources), ESLint and TypeScript passed |
+| `make types` | Passed; no generated client drift |
+| `make test` | 130 backend unit passed, one Windows symlink skip; 63 real PostGIS integration passed; 36 frontend passed |
+| `node .tooling/capture-m8.cjs` | Synthetic-only browser captures passed with no exceptions; files visually reviewed |
+| `git diff --check` | Passed |
+
+Initial lint runs caught line length/formatting in the new acceptance helper;
+both were fixed before the passing run. The clean-clone receipt and hosted CI
+results will be recorded after committed-source verification finishes.

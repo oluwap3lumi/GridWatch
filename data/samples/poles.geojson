@@ -1,0 +1,165 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-13",
+        "capacity_kva": 0,
+        "install_date": "1998-07-16",
+        "load_factor": 0.8694,
+        "last_maintenance_date": "2025-02-20",
+        "material": "concrete",
+        "vegetation_index": 0.3221,
+        "feeder_id": "sample-feeder-1"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.32612,
+          6.528991
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-14",
+        "capacity_kva": 0,
+        "install_date": "1980-02-26",
+        "load_factor": 1.2348,
+        "last_maintenance_date": "2023-10-16",
+        "material": "steel",
+        "vegetation_index": 0.7292,
+        "feeder_id": "sample-feeder-2"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.426938,
+          6.474256
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-15",
+        "capacity_kva": 0,
+        "install_date": "1995-09-09",
+        "load_factor": 1.1353,
+        "last_maintenance_date": "2025-10-03",
+        "material": "wood",
+        "vegetation_index": 0.3804,
+        "feeder_id": "sample-feeder-1"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.332157,
+          6.520469
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-16",
+        "capacity_kva": 0,
+        "install_date": "1986-12-18",
+        "load_factor": 1.3431,
+        "last_maintenance_date": "2024-12-01",
+        "material": "concrete",
+        "vegetation_index": 0.5406,
+        "feeder_id": "sample-feeder-2"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.506654,
+          6.578952
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-17",
+        "capacity_kva": 0,
+        "install_date": "1983-09-09",
+        "load_factor": 1.3833,
+        "last_maintenance_date": "2024-02-03",
+        "material": "wood",
+        "vegetation_index": 0.614,
+        "feeder_id": "sample-feeder-1"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.31813,
+          6.539302
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-18",
+        "capacity_kva": 0,
+        "install_date": "1979-03-11",
+        "load_factor": 1.1902,
+        "last_maintenance_date": "2025-08-27",
+        "material": "steel",
+        "vegetation_index": 0.7198,
+        "feeder_id": "sample-feeder-2"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.464525,
+          6.523172
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-19",
+        "capacity_kva": 0,
+        "install_date": "2005-10-24",
+        "load_factor": 0.807,
+        "last_maintenance_date": "2023-12-05",
+        "material": "wood",
+        "vegetation_index": 0.329,
+        "feeder_id": "sample-feeder-1"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.365606,
+          6.487389
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-pole-20",
+        "capacity_kva": 0,
+        "install_date": "1985-04-21",
+        "load_factor": 1.1365,
+        "last_maintenance_date": "2024-10-15",
+        "material": "steel",
+        "vegetation_index": 0.5741,
+        "feeder_id": "sample-feeder-2"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.48945,
+          6.560599
+        ]
+      }
+    }
+  ]
+}

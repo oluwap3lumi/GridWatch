@@ -1,4 +1,4 @@
-# Uploads (M8 in progress)
+# Uploads
 
 ## Upload page
 
@@ -27,6 +27,50 @@ Polling omits the full error array (`GET /imports/{id}?include_errors=false`),
 but preserves preview row errors. The default detail endpoint and error CSV
 retain the complete error report. History omits previews and full errors.
 
+## Try the synthetic samples
+
+The [sample directory](../data/samples/README.md) contains eight transformers as
+CSV, eight poles as GeoJSON and projected Shapefile, two feeder lines as GeoJSON,
+and a broken CSV with one valid/four invalid rows. All originate in the existing
+synthetic generator. Seed, train and rescore the demo before importing them.
+Upload transformers first, then poles and feeders: unresolved parents warn and
+resolve on later imports. Re-uploading the CSV or the matching Shapefile poles
+updates stable IDs. After all three layers, expect 18 additional assets, not 26.
+Rescore to see the imported estimates; these complete samples do not need median
+defaults. Roll back dependent batches in reverse order.
+
+![Upload form showing supported formats and templates](images/upload.png)
+
+![Synthetic transformer validation with geometry preview](images/upload-preview.png)
+
+## Prepare a GIS export
+
+Keep a persistent string external ID column in every export, and preserve parent
+external IDs in transformer `pole_id`/`feeder_id` fields. Export one geometry layer
+per file. Prefer ISO dates and decimal points, preserve leading-zero IDs as text,
+and check empty geometries before export. Spreadsheet CSV exports should use
+UTF-8 and comma or semicolon delimiters. Coordinates use longitude/X before
+latitude/Y in geometry; the column mapper handles tabular names.
+
+In QGIS, use **Export > Save Features As** on a vector layer, select GeoJSON or
+ESRI Shapefile, and choose the output CRS. EPSG:4326 is a convenient GeoJSON
+choice. See [QGIS vector export documentation](https://documentation.qgis.org/3.44/en/docs/user_manual/managing_data_source/create_layers.html).
+
+In ArcGIS Pro, **Features To JSON** can produce GeoJSON; choose GeoJSON output
+and project to WGS84. An Esri JSON feature-set object is not a GeoJSON
+FeatureCollection. See [Esri's export documentation](https://doc.esri.com/en/arcgis-pro/latest/tool-reference/conversion/features-to-json.html).
+Use **Project** to transform coordinates. **Define Projection** changes the CRS
+metadata, so use it only when correcting a known missing/wrong definition, not
+to convert coordinates. See [Esri's CRS guidance](https://pro.arcgis.com/en/pro-app/3.3/tool-reference/data-management/define-projection.htm).
+
+For Shapefile, zip the matching `.shp`, `.shx`, `.dbf`, and `.prj` together; include
+`.cpg` for encoding. Do not include a geodatabase, nested archives, unrelated
+layers, or executable files. DBF field names are shortened, so confirm their
+mapping. Keep the true projected CRS and `.prj`, or deliberately export to
+EPSG:4326; GridWatch reprojects from the declared/selected CRS. If `.prj` is absent
+or unreadable, identify the actual source CRS before validating. Choosing a CRS
+does not repair coordinates recorded in another system.
+
 ## Data policy
 
 Only synthetic/public material may be committed: examples, test fixtures, docs,
@@ -40,7 +84,7 @@ filenames; import events contain batch UUIDs, nonnegative counts, and fixed code
 SQLAlchemy engine exceptions hide bind parameters. Do not print uploaded rows or
 raw parser exceptions from workers, request handlers, or command-line helpers.
 
-## Slice 1 foundations
+## Storage and limits
 
 Migration `0003` adds import history, durable job state and leases, expiring staged
 rows, and an undo journal. Asset relationships/identity and nullable source
@@ -64,16 +108,14 @@ seeding so future generated IDs do not collide with deterministic seed IDs.
 
 The bounded staging helper uses UUID filenames, exclusive creation, and partial
 file cleanup. Its deletion operation is idempotent and rejects symlink targets.
-History records have explicit `expires_at`; the lifecycle worker will delete raw
-files and staged rows after commit, rollback, or TTL expiry. Automatic expiry,
-upload endpoints, worker execution, and Upload UI are **not available in
-slice 1**. The undo journal is persistent imported-data history, separate from
+History records have explicit `expires_at`; the lifecycle worker deletes raw
+files and staged rows after commit, rollback, or TTL expiry. The undo journal is
+persistent imported-data history, separate from
 temporary staging, and is required to restore overwritten records.
 
-## Slice 2: Parsers and validation
+## Formats, mapping and validation
 
-Pure helpers now parse and validate uploads without writing live tables. The HTTP
-upload flow, durable worker, and downloadable reports are connected in slice 3.
+Pure helpers parse and validate uploads without writing live asset tables.
 Only the four approved dependencies were added: python-multipart, PyShp, pyproj,
 and Shapely 2.x, with locked versions in `backend/uv.lock`. No GDAL-based reader
 or frontend package was added.
@@ -129,13 +171,12 @@ and abbreviated month names. Ambiguous numeric dates require an explicit
 day-first/month-first convention. Errors and native-library warnings never expose
 source values or native exception text in logs.
 
-## Slice 3: API and durable import lifecycle
+## API and durable import lifecycle
 
 `make up` now starts an `import-worker` alongside PostGIS, API, and web. The API
 and worker share the private `upload_staging` Docker volume. Upload limits and TTL
 come from `.env.example`; Compose passes them to both processes. No extra service
-or package is required. This slice exposes the API; the Upload page and imported
-asset inference follow in slices 5 and 4 respectively.
+or package is required. The Upload page uses these same endpoints.
 
 All paths below have prefix `/api/v1`. Upload, validation, commit, and rollback
 return **202** with a batch detail. Poll `GET /imports/{id}` until its latest
@@ -155,6 +196,7 @@ errors/warnings for that preview, plus all row errors in `errors`.
 | `GET /imports/{id}` | Counts, status, preview, errors, extent, latest job and progress |
 | `GET /imports/{id}/errors.csv` | Download `row_number,field,reason`; includes safe file-level failure codes |
 | `GET /imports/templates/{layer_type}.csv` | CSV column header template; feeder lines use WKT geometry |
+| `GET /imports/templates/{layer_type}.geojson` | Downloadable generator-backed synthetic feature |
 
 For example, in PowerShell use `curl.exe -F "file=@your-transformers.csv" -F
 "layer_type=transformer" http://localhost:8000/api/v1/imports`. Then use the returned
@@ -195,8 +237,8 @@ writing, so a conflict arising after enqueue becomes a failed rollback job with
 restores them. Derived risk scores are invalidated by both commit and rollback.
 
 Optional rescoring is a separate durable job after import commits. Its failure
-leaves the batch imported; inspect the latest job status. Slice 4 adds the
-inference contract described below while preserving the strict training checks.
+leaves the batch imported; inspect the latest job status. The inference contract
+below preserves the strict training checks.
 
 Jobs use PostgreSQL leases and token checks before committing effects. A heartbeat
 renews leases and persists row progress. Worker restart recovers expired leases;
@@ -214,7 +256,7 @@ limit. Actual file bytes are independently checked against `UPLOAD_MAX_BYTES`.
 Stored paths are UUID-derived; the original basename is sanitized for history.
 Reports include canonical fields and fixed reasons rather than uploaded values.
 
-## Slice 4: Scoring uploaded assets
+## Scoring uploaded assets
 
 Start with the seeded and trained demo described in the README before uploading.
 Asset uploads alone do not provide a trained model, weather history or failure

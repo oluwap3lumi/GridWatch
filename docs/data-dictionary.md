@@ -1,6 +1,6 @@
 # Data dictionary
 
-M8 upload column mapping (slice 2):
+Upload column mapping:
 
 | Canonical source field | Interpretation |
 | --- | --- |
@@ -16,7 +16,7 @@ Geometry layers are transformer/pole Points and feeder LineString/MultiLineStrin
 Output geometry is two-dimensional EPSG:4326. Null/invalid shapes are row errors;
 no geometry repair or missing-attribute imputation occurs during validation.
 
-M8 slice 1 adds private runtime import foundations (see [uploads](uploads.md)):
+Private runtime import tables (see [uploads](uploads.md)):
 
 | Table | Purpose and important fields |
 | --- | --- |
@@ -30,12 +30,29 @@ Assets gain `external_id` (unique within type), nullable `pole_id`, unresolved
 an incrementing `revision`. Type guards protect feeder and pole references.
 Point assets may be unassigned; feeders accept LineString/MultiLineString.
 Source attributes (installation/maintenance dates, capacity, load, material,
-vegetation) are nullable rather than fabricated. Scoring defaults and imported
-inference are implemented in a later M8 slice. The older sections below describe
+vegetation) are nullable rather than fabricated. Explicitly accepted scoring
+defaults remain derived inputs and never overwrite these columns. The sections below describe
 the synthetic corpus, whose generated attributes remain complete.
 
 Committed data must be synthetic or public. Demo data originates in `data/generator`.
 Private user uploads are allowed at runtime and stay on their deployment.
+
+Transformer CSV requires a stable external ID and valid point coordinates,
+provided as mapped latitude/longitude or WKT. Spatial transformer/pole files use
+Point geometry; feeders use LineString/MultiLineString. All layers require an
+external ID. Optional capacity must be positive for transformers and nonnegative
+for poles/feeders, always below 1,000,000 kVA. Load is `0 < load_factor <= 1.5`;
+vegetation is in `[0,1]`. Maintenance cannot predate installation. ISO dates are
+recommended; supported numeric dates that are ambiguous need an explicit
+day-first/month-first choice. Source IDs are strings up to 255 characters;
+relationships match external IDs within the appropriate parent layer type.
+Missing optional values preserve existing attributes on re-import.
+
+Common mapping aliases include `lat`/`latitude`/`y`, `lon`/`lng`/`longitude`/`x`,
+`externalid`/`asset_id`/`id`, `kva`, `installed`, `feeder`, and `pole`. Short DBF
+names in the projected sample (`externalid`, `capacity_k`, `load_facto`,
+`install_da`, `last_maint`, `vegetation`) are supported. See the generator-backed
+[sample schemas](../data/samples/README.md) and [format preparation](uploads.md).
 
 All geometry uses EPSG:4326 and explicit GiST indexes. Feeder assets
 are LineStrings; transformers and poles are Points. `assets.feeder_id` links point

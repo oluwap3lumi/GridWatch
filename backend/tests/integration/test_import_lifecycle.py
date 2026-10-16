@@ -360,3 +360,44 @@ def test_feature_limit_rejects_before_asset_writes(
         result = detail(session, batch.id)
         assert result.status == "failed" and result.job.error_code == "FEATURE_LIMIT"
         assert session.scalar(select(func.count()).select_from(Asset)) == 0
+
+
+def test_generator_samples_upsert_relationships_partial_success_and_undo(
+    engine: Engine, storage: UploadStorage
+) -> None:
+    from data.generator.samples import sample_files
+
+    samples = sample_files()
+    identifiers = []
+    for name, layer, inserted, updated in [
+        ("transformers.csv", "transformer", 8, 0),
+        ("poles.geojson", "pole", 8, 0),
+        ("feeder_lines.geojson", "feeder_line", 2, 0),
+        ("poles_shapefile.zip", "pole", 0, 8),
+        ("transformers.csv", "transformer", 0, 8),
+        ("broken_transformers.csv", "transformer", 0, 1),
+    ]:
+        identifier = start(engine, storage, samples[name], name, layer)
+        identifiers.append(identifier)
+        commit(identifier, engine, CommitImport(valid_rows_only=name.startswith("broken")))
+        process_one(engine, storage)
+        with Session(engine) as session:
+            result = detail(session, identifier)
+            assert result.status == "imported", result.job.error_code
+            assert result.row_counts.inserted == inserted
+            assert result.row_counts.updated == updated
+            assert not storage.path(identifier).exists()
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(Asset)) == 18
+        transformers = session.scalars(select(Asset).where(Asset.type == "transformer")).all()
+        assert all(
+            asset.feeder_id is not None and asset.pole_id is not None for asset in transformers
+        )
+        assert detail(session, identifiers[-1]).row_counts.invalid == 4
+    for identifier in reversed(identifiers):
+        undo(identifier, engine)
+        process_one(engine, storage)
+        with Session(engine) as session:
+            assert detail(session, identifier).status == "rolled_back"
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(Asset)) == 0

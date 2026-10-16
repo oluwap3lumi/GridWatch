@@ -1,0 +1,87 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-feeder-1",
+        "capacity_kva": 3750.0,
+        "install_date": "1993-12-22",
+        "load_factor": 0.8756,
+        "last_maintenance_date": "2024-04-10",
+        "material": "aluminium",
+        "vegetation_index": 0.477
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            3.265,
+            6.616216
+          ],
+          [
+            3.289,
+            6.571493
+          ],
+          [
+            3.313,
+            6.54491
+          ],
+          [
+            3.337,
+            6.515349
+          ],
+          [
+            3.361,
+            6.494439
+          ],
+          [
+            3.385,
+            6.460157
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "external_id": "sample-feeder-2",
+        "capacity_kva": 4250.0,
+        "install_date": "1981-09-05",
+        "load_factor": 0.9366,
+        "last_maintenance_date": "2024-11-24",
+        "material": "copper",
+        "vegetation_index": 0.6409
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            3.415,
+            6.466528
+          ],
+          [
+            3.439,
+            6.482788
+          ],
+          [
+            3.463,
+            6.522026
+          ],
+          [
+            3.487,
+            6.558392
+          ],
+          [
+            3.511,
+            6.582378
+          ],
+          [
+            3.535,
+            6.602637
+          ]
+        ]
+      }
+    }
+  ]
+}

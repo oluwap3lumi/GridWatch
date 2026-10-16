@@ -126,6 +126,14 @@ includes asset import provenance/revisions and all weather/outage rows. Both
 hashes are rechecked before score replacement. Uploaded estimates use synthetic
 history and are not validated utility forecasts. See [uploads](uploads.md).
 
+The [upload API](uploads.md#api-and-durable-import-lifecycle) accepts multipart
+files at `POST /api/v1/imports`, then schedules validation, transactional commit,
+and rollback as durable jobs. Poll typed batch details for progress. History,
+downloadable error CSVs, per-layer CSV templates and generator-backed GeoJSON
+examples are available under the same prefix. `include_errors=false` omits the
+full detail error array for polling while preserving preview issues. The Upload
+page uses the generated OpenAPI contracts for these operations.
+
 For the existing trained stack in PowerShell:
 
 ```powershell

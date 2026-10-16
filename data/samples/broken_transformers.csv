@@ -1,0 +1,6 @@
+external_id,capacity_kva,install_date,load_factor,last_maintenance_date,material,vegetation_index,feeder_id,latitude,longitude,pole_id
+sample-transformer-3,750.0,2006-10-02,0.7701,2025-05-30,steel,0.3007,sample-feeder-1,6.535885,3.320005,sample-pole-13
+sample-transformer-4,1000.0,1995-12-02,0.7573,2023-10-10,steel,0.4925,sample-feeder-2,0,0,sample-pole-14
+sample-transformer-5,-1,invalid-date,0.7824,2024-03-19,steel,0.1854,sample-feeder-1,6.498848,3.358102,sample-pole-13
+sample-transformer-6,1000.0,1989-07-25,0.9854,2024-09-14,steel,0.4234,sample-feeder-2,6.544339,3.478582,sample-pole-14
+sample-transformer-6,1000.0,1995-08-07,0.8678,2025-11-28,steel,0.4339,sample-feeder-1,6.553959,3.306621,sample-pole-13

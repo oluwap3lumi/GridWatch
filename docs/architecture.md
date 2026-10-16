@@ -104,6 +104,22 @@ separate Refresh views action retries reads without sending another scoring POST
 
 ## Operations and delivery
 
+M8 adds deployment-local multipart uploads and a separate durable import worker.
+Raw files live under UUID-derived names in a shared private staging volume;
+validated rows remain in expiring database staging until transactional commit.
+Jobs use PostgreSQL leases and fenced writes, with progress visible in batch
+detail. Upserts match type/external ID, preserve creation provenance, and journal
+before-images/revisions for reverse-order rollback. Commit/undo clear derived
+scores. Optional rescoring is a separate job so scoring failure preserves the
+import. Training excludes uploaded assets; inference checks both the verified
+training hash and the full source hash, with explicit consent for median defaults.
+
+The Upload page maps columns, previews staged geometry, polls jobs, and exposes
+history/error reports/rollback through generated contracts. Staging files/rows
+are removed after commit, rollback, or TTL expiry. Persistent history/undo data
+remains local. No runtime upload enters repository samples or screenshots; see
+[the upload guide](uploads.md) for access-control responsibilities and limits.
+
 An outer ASGI wrapper attaches validated or generated request IDs to all HTTP
 responses, including errors. JSON request logs record fixed route templates,
 methods, status codes, and elapsed time, omitting query strings, headers, request
@@ -114,7 +130,10 @@ share one bucket, and counters reset at restart.
 GitHub Actions installs lockfile dependencies with npm/uv caching and pinned action
 revisions. It runs lint/types, unit and real ephemeral PostGIS integration tests,
 frontend tests/build, generated-type drift checks, Docker startup, seed/train,
-two-run reproducibility, and HTTP/PostGIS smoke verification. The local
+two-run reproducibility, and HTTP/PostGIS smoke verification. M8 additionally
+checks reproducible synthetic samples, then imports CSV, GeoJSON and projected
+Shapefile samples, scores them, and verifies re-imports, reports and rollback.
+The local
 `make verify-clean` command uses a separate clone, Compose project, ports,
 credentials, database volumes, and artifact directory, then exercises a database
 outage and recovery before removing that project's containers and volumes.
