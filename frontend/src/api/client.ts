@@ -21,6 +21,21 @@ export function rescore(options: RescoreRequest = {}) {
   return request('POST /api/v1/risk/rescore', {}, {}, undefined, options);
 }
 
+export function post<K extends Extract<keyof ApiOperations, `POST ${string}`>>(
+  operation: K, path: ApiOperations[K]['path'], body?: ApiOperations[K]['body'],
+): Promise<ApiOperations[K]['response']> {
+  return request(operation, path, {}, undefined, body);
+}
+
+export async function uploadFile(file: File, layer: import('./generated').LayerType): Promise<import('./generated').ImportBatchDetail> {
+  const body = new FormData();
+  body.append('file', file);
+  body.append('layer_type', layer);
+  const response = await fetch('/api/v1/imports', { method: 'POST', body });
+  if (!response.ok) throw new ApiError(response.status, response.status === 413 ? 'Upload exceeds the configured size limit.' : `Upload failed (${response.status}).`);
+  return response.json() as Promise<import('./generated').ImportBatchDetail>;
+}
+
 async function request<K extends keyof ApiOperations>(operation: K, path: ApiOperations[K]['path'], query: ApiOperations[K]['query'], signal?: AbortSignal, body?: ApiOperations[K]['body']): Promise<ApiOperations[K]['response']> {
   let url = operation.split(' ')[1];
   for (const [key, value] of Object.entries(path)) url = url.replace(`{${key}}`, encodeURIComponent(String(value)));

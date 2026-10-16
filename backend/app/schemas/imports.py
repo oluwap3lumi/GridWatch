@@ -75,6 +75,17 @@ class ImportHistory(ApiModel):
     total: int
 
 
+class ImportExampleFeature(ApiModel):
+    type: Literal["Feature"] = "Feature"
+    geometry: AssetGeometry
+    properties: dict[str, JsonValue]
+
+
+class ImportExample(ApiModel):
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    features: list[ImportExampleFeature]
+
+
 class ValidateImport(ApiModel):
     column_mapping: dict[str, str] = Field(default_factory=dict)
     source_crs: str | None = Field(default=None, max_length=4096)

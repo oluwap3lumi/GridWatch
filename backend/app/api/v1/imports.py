@@ -6,6 +6,8 @@ import re
 from typing import Annotated
 from uuid import UUID, uuid4
 
+from data.generator.assets import generate_assets
+from data.generator.config import GeneratorConfig
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
@@ -15,10 +17,13 @@ from app.repositories.imports import create_batch, detail, history, schedule_job
 from app.schemas.imports import (
     CommitImport,
     ImportBatchDetail,
+    ImportExample,
+    ImportExampleFeature,
     ImportHistory,
     LayerType,
     ValidateImport,
 )
+from app.schemas.spatial import LineGeometry, PointGeometry
 from app.services.import_records import ParseFailure
 from app.services.upload_storage import UploadStorage, UploadTooLarge
 
@@ -86,10 +91,44 @@ def template(layer_type: LayerType) -> Response:
     )
 
 
+@router.get("/templates/{layer_type}.geojson", response_model=ImportExample)
+def example(layer_type: LayerType, response: Response) -> ImportExample:
+    """Generate a small, independently importable synthetic example."""
+    kind = "feeder" if layer_type == "feeder_line" else layer_type
+    asset = next(
+        item
+        for item in generate_assets(
+            GeneratorConfig(asset_count=10, feeder_count=1, transformer_count=2)
+        )
+        if item.type == kind
+    )
+    response.headers["Content-Disposition"] = 'attachment; filename="example.geojson"'
+    return ImportExample(
+        features=[
+            ImportExampleFeature(
+                geometry=LineGeometry(coordinates=list(asset.coordinates))
+                if kind == "feeder"
+                else PointGeometry(coordinates=asset.coordinates[0]),
+                properties={
+                    "external_id": f"demo-{layer_type}-{asset.id}",
+                    "install_date": asset.install_date.isoformat(),
+                    "capacity_kva": asset.capacity_kva,
+                    "load_factor": min(asset.load_factor, 1.5),
+                    "vegetation_index": asset.vegetation_index,
+                    "material": asset.material,
+                    "last_maintenance_date": asset.last_maintenance_date.isoformat(),
+                },
+            )
+        ]
+    )
+
+
 @router.get("/{batch_id}", response_model=ImportBatchDetail)
-def get_import(batch_id: UUID, session: ReadSession) -> ImportBatchDetail:
+def get_import(
+    batch_id: UUID, session: ReadSession, include_errors: bool = True
+) -> ImportBatchDetail:
     try:
-        return detail(session, batch_id)
+        return detail(session, batch_id, include_errors=include_errors)
     except ParseFailure as error:
         raise failure(error) from None
 

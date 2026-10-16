@@ -99,7 +99,9 @@ def enqueue(
     return job
 
 
-def detail(session: Session, batch_id: UUID) -> ImportBatchDetail:
+def detail(
+    session: Session, batch_id: UUID, *, include_errors: bool = True, include_preview: bool = True
+) -> ImportBatchDetail:
     batch = session.get(ImportBatch, batch_id)
     if batch is None:
         raise ParseFailure("BATCH_NOT_FOUND")
@@ -110,12 +112,17 @@ def detail(session: Session, batch_id: UUID) -> ImportBatchDetail:
         .limit(1)
     )
     preview = []
-    for row in session.scalars(
-        select(ImportRow)
-        .where(ImportRow.batch_id == batch_id)
-        .order_by(ImportRow.row_number)
-        .limit(20)
-    ):
+    staged = (
+        session.scalars(
+            select(ImportRow)
+            .where(ImportRow.batch_id == batch_id)
+            .order_by(ImportRow.row_number)
+            .limit(20)
+        )
+        if include_preview
+        else ()
+    )
+    for row in staged:
         geometry = (
             json.loads(session.scalar(select(func.ST_AsGeoJSON(row.geom))) or "null")
             if row.geom is not None
@@ -148,7 +155,7 @@ def detail(session: Session, batch_id: UUID) -> ImportBatchDetail:
             completed_at=batch.completed_at,
             expires_at=batch.expires_at,
             preview=preview,
-            errors=batch.error_report.get("errors", []),
+            errors=batch.error_report.get("errors", []) if include_errors else [],
             extent=batch.error_report.get("extent"),
             error_code=batch.error_report.get("code"),
             warnings=batch.error_report.get("warnings", []),
@@ -176,7 +183,9 @@ def history(session: Session, limit: int, offset: int) -> ImportHistory:
         .offset(offset)
     )
     return ImportHistory(
-        items=[detail(session, value) for value in ids],
+        items=[
+            detail(session, value, include_errors=False, include_preview=False) for value in ids
+        ],
         total=session.scalar(select(func.count()).select_from(ImportBatch)) or 0,
     )
 

@@ -147,8 +147,13 @@ M8 is adding private runtime uploads. User data stays on the deployment and must
 never be committed, included in screenshots, or logged as row contents/coordinates.
 **Deployers are responsible for access control: GridWatch has no real authentication.**
 Staged uploads are subject to configurable retention and deletion after commit,
-rollback, or expiry by the M8 import worker. The upload API is available; the
-Upload page is still being implemented. Imported assets can be rescored using
+rollback, or expiry by the M8 import worker. Open **Upload** to select a layer,
+upload CSV, zipped Shapefile or GeoJSON/JSON, map columns, and validate all rows.
+Review the first 20 rows and geometry preview, explicitly accept skipping invalid
+rows if needed, then commit. Results link to the error CSV and imported extent on
+the map; history supports reopening and confirmed rollback. CSV templates and
+generator-backed synthetic GeoJSON examples are downloadable from the page.
+Imported assets can be rescored using
 the synthetic demo model; missing model attributes require explicit consent to
 training medians. The Model page includes that opt-in, and asset details identify
 applied defaults and synthetic history. These estimates have no validation for
@@ -170,7 +175,8 @@ are recorded in the milestone notes; screenshots capture the running synthetic
 demo. AI assistance does not validate the model for real infrastructure use.
 M8 continues in reviewed slices: AI assistance covers private-upload foundations,
 format parsing, CRS handling, durable jobs, transactional upserts/undo, retention,
-inference provenance, explicit scoring defaults, and adversarial validation tests. Runtime user data
+inference provenance, explicit scoring defaults, the Upload workflow and interaction tests,
+and adversarial validation tests. Runtime user data
 is kept out of committed fixtures, documentation, screenshots, and logs.
 
 ## Documentation and licence

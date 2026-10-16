@@ -191,3 +191,64 @@ The Upload page remains slice 5. Generator sample files, updated screenshots,
 hosted M8 CI and final clean-clone acceptance remain slice 6. No claim of model
 accuracy on real infrastructure is made: uploaded estimates still use the
 invented demo weather/outage context and historical cutoff.
+
+## Slice 5: Upload interface
+
+The Upload navigation page now accepts one CSV, zipped Shapefile, or GeoJSON/JSON
+layer at a time. It offers server-suggested editable column mappings, explicit
+source CRS selection when missing, and date conventions. Validation runs before
+asset writes; the first 20 rows show errors/warnings alongside a MapLibre geometry
+preview. Duplicate source mappings are blocked. Partial success requires an
+explicit checkbox, and rescoring/default consent are separate unchecked options.
+
+Durable jobs are polled with progress and retryable read-error states. A failed
+rescore retains a saved import and links to Model for recovery. Results show
+inserted/updated/skipped counts, the full error CSV, View on map (batch ID in the
+URL, with extent fetched locally), and confirmed rollback. History supports
+pagination, reopening, and rollback. Map/asset/model caches are invalidated when
+mutating jobs finish. Closing an uncommitted batch leaves source assets unchanged
+and explains staging expiry. Runtime coordinates and rows are never logged.
+
+Small API additions support this page: optional `include_errors=false` keeps
+polling responses bounded while retaining preview errors and the full CSV;
+history omits row previews and full error arrays. A typed downloadable
+`GET /api/v1/imports/templates/{layer_type}.geojson` generates an independently
+importable synthetic feature through `data/generator`; unit tests validate each
+layer example. No dependency was added.
+
+Browser verification used an isolated disposable PostGIS/API/worker/web deployment
+on port 15173, not the main demo. The ignored local driver
+`node .tooling/m8-ui.cjs` generated its CSV from the synthetic example and exercised
+file selection, inspection, mapping, validation, a rendered geometry preview,
+commit, main-map navigation, history reopening, and confirmed rollback. Asset
+count returned to zero. Desktop (1440 px) and mobile (390 px) checks found no page
+overflow. The final check passed without browser exceptions using a fresh headless
+Edge profile with extensions disabled. Earlier runs completed the flow but caught
+permission errors in the extension-enabled browser. Those runs were not counted
+as clean browser passes. The disposable deployment/staging volume and both task
+browser sessions were removed/closed afterward. Review captures remain ignored;
+published synthetic screenshots and generator sample files belong to slice 6.
+
+| Command run | Result |
+| --- | --- |
+| `make lint` | Ruff, format check (110 files), strict mypy (79 sources), ESLint and TypeScript passed |
+| `make types` | Regenerated OpenAPI client; example contracts and optional lightweight polling query included |
+| `make test` | 124 backend unit passed, one existing Windows symlink skip; 62 real PostGIS integration passed; 36 frontend passed |
+| `make up` | Production frontend build passed; PostGIS, API, web and import worker healthy |
+| `node .tooling/m8-ui.cjs` | Synthetic-only real-browser flow and desktop/mobile overflow checks passed without exceptions in the extension-disabled profile |
+| `make smoke` | Original 3,000-asset demo rescored successfully, unchanged bands (812/1,828/90/270) and 41 hotspots; provenance, API/PostGIS and metrics checks passed |
+| `git diff --check` | Passed |
+
+Frontend coverage now includes multipart layer selection, mapping suggestions and
+duplicate prevention, explicit CRS/date choices, highlighted errors, partial-row
+consent, scoring consent, job polling, read retries, retained imports after scoring
+or rollback failures, confirmation before undo, and point-extent map zoom. Backend
+tests verify generated examples and omission of large polling/history payloads
+without losing preview errors or the downloadable full report. Initial checks
+caught a MapLibre expression type and the generated bodyless POST contract; both
+were corrected before the passing checks above. PowerShell's script policy
+required calling the existing `npm.cmd` launcher; no tool/dependency was installed.
+
+Slice 6 remains: generator sample files (including projected Shapefile and broken
+input), published synthetic screenshots, documentation polish, clean-clone
+acceptance, and hosted M8 CI. This slice does not claim hosted CI verification.

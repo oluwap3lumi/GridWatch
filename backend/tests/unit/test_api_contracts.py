@@ -45,6 +45,7 @@ def test_openapi_paths_references_and_serialized_defaults() -> None:
         "/api/v1/model/history",
         "/api/v1/imports",
         "/api/v1/imports/templates/{layer_type}.csv",
+        "/api/v1/imports/templates/{layer_type}.geojson",
         "/api/v1/imports/{batch_id}",
         "/api/v1/imports/{batch_id}/validate",
         "/api/v1/imports/{batch_id}/commit",

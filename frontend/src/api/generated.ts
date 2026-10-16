@@ -19,6 +19,8 @@ export type HotspotCollection = { "type": "FeatureCollection"; "features": Array
 export type HotspotFeature = { "type": "Feature"; "id": number; "geometry": PointGeometry; "properties": HotspotProperties; };
 export type HotspotProperties = { "asset_count": number; "asset_ids": Array<number>; "mean_score": number; "max_score": number; "counts_by_band": BandCounts; };
 export type ImportBatchDetail = { "id": string; "filename": string; "format": (ImportFormat) | (null); "layer_type": LayerType; "status": BatchStatus; "row_counts": RowCounts; "detected_columns": Array<string>; "column_mapping": Record<string, string>; "crs_detected": (string) | (null); "crs_selected": (string) | (null); "created_at": string; "completed_at": (string) | (null); "expires_at": string; "preview": Array<PreviewRow>; "job": (JobProgress) | (null); "errors": Array<RowIssue>; "extent": (Array<number>) | (null); "error_code": (string) | (null); "warnings": Array<string>; };
+export type ImportExample = { "type": "FeatureCollection"; "features": Array<ImportExampleFeature>; };
+export type ImportExampleFeature = { "type": "Feature"; "geometry": AssetGeometry; "properties": Record<string, JsonValue>; };
 export type ImportFormat = "csv" | "shapefile" | "geojson";
 export type ImportHistory = { "items": Array<ImportBatchDetail>; "total": number; };
 export type InferenceWarning = "SYNTHETIC_HISTORY" | "NO_ASSET_OUTAGE_HISTORY" | "OUTSIDE_TRAINING_EXTENT" | "IMPUTED_ATTRIBUTES" | "UNAVAILABLE_FEEDER_ANCHOR";
@@ -92,9 +94,15 @@ export interface ApiOperations {
     response: string;
     body: never;
   };
+  "GET /api/v1/imports/templates/{layer_type}.geojson": {
+    path: { "layer_type": "transformer" | "pole" | "feeder_line"; };
+    query: Record<string, never>;
+    response: ImportExample;
+    body: never;
+  };
   "GET /api/v1/imports/{batch_id}": {
     path: { "batch_id": string; };
-    query: Record<string, never>;
+    query: { "include_errors"?: boolean; };
     response: ImportBatchDetail;
     body: never;
   };

@@ -8,7 +8,7 @@ import { blankMapStyle } from './mapStyle';
 import { riskColors } from './risk';
 
 setWorkerUrl(workerUrl);
-interface MapProps { assets: AssetFeature[]; hotspots: HotspotFeature[]; selected: AssetFeature | null; onSelect: (id: number) => void }
+interface MapProps { assets: AssetFeature[]; hotspots: HotspotFeature[]; selected: AssetFeature | null; onSelect: (id: number) => void; focusExtent?: number[] | null }
 const colors: ExpressionSpecification = ['match', ['get', 'band'], 'low', riskColors.low, 'medium', riskColors.medium, 'high', riskColors.high, 'critical', riskColors.critical, riskColors.unscored];
 function data(assets: AssetFeature[]) {
   return { type: 'FeatureCollection' as const, features: assets.map((asset) => ({ ...asset, properties: { kind: asset.properties.type, band: asset.properties.risk?.band ?? 'unscored' } })) };
@@ -64,6 +64,13 @@ export function Map(props: MapProps) {
     } catch { setStatus('Map unavailable. Use the asset list to explore the network.'); }
     return () => { observer?.disconnect(); map?.remove(); mapRef.current = null; };
   }, []);
+  useEffect(() => {
+    const extent = props.focusExtent;
+    if (!ready || !mapRef.current || !extent || extent.length !== 4 || !extent.every(Number.isFinite)) return;
+    const [west, south, east, north] = extent;
+    if (west > east || south > north || west < -180 || east > 180 || south < -90 || north > 90) return;
+    mapRef.current.fitBounds([[west, south], [east, north]], { padding: 65, maxZoom: 15, duration: 0 });
+  }, [ready, props.focusExtent]);
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     (mapRef.current.getSource('assets') as GeoJSONSource).setData(data(props.assets));

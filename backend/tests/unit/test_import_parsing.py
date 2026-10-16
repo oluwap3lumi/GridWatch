@@ -27,6 +27,21 @@ from app.services.import_validation import (
 LIMITS = UploadSettings()
 
 
+@pytest.mark.parametrize("layer", ["transformer", "pole", "feeder_line"])
+def test_generated_geojson_example_is_importable(layer) -> None:
+    from fastapi.responses import Response
+
+    from app.api.v1.imports import example
+
+    response = Response()
+    document = example(layer, response)
+    parsed = parse_upload(document.model_dump_json().encode(), "example.geojson", LIMITS)
+    rows = validate_upload(parsed, layer, ValidateImport())
+    assert len(rows) == 1
+    assert not rows[0].errors
+    assert "attachment" in response.headers["Content-Disposition"]
+
+
 def packed(members: dict[str, bytes], *, compressed: bool = False) -> bytes:
     result = io.BytesIO()
     with zipfile.ZipFile(

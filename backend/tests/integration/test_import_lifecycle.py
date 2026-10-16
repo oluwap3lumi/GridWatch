@@ -137,6 +137,16 @@ def test_partial_errors_and_rescore_failure_preserves_import(
     engine: Engine, storage: UploadStorage
 ) -> None:
     identifier = start(engine, storage, CSV + b"bad,0,0,250,nonsense\n")
+    from app.api.v1.imports import get_import, list_imports
+
+    with Session(engine) as session:
+        lightweight = get_import(identifier, session, include_errors=False)
+        assert not lightweight.errors and lightweight.row_counts.invalid == 1
+        assert lightweight.preview[1].errors
+        page = list_imports(session, 20, 0)
+        assert page.total == 1 and not page.items[0].errors and not page.items[0].preview
+        assert get_import(identifier, session).errors
+        assert "row_number,field,reason" in bytes(errors_csv(identifier, session).body).decode()
     with pytest.raises(HTTPException) as caught:
         commit(identifier, engine, CommitImport())
     assert caught.value.status_code == 409

@@ -19,6 +19,14 @@ vi.mock('maplibre-gl', () => ({
   },
 }));
 beforeEach(() => { adapter.callbacks.clear(); adapter.sources.clear(); adapter.layers.length = 0; vi.clearAllMocks(); });
+it('zooms to a point import extent and ignores invalid extent updates', () => {
+  const view = render(<Map assets={[]} hotspots={[]} selected={null} onSelect={adapter.onSelect} focusExtent={[3.3, 6.5, 3.3, 6.5]} />);
+  act(() => adapter.callbacks.get('load')?.());
+  expect(adapter.fit).toHaveBeenLastCalledWith([[3.3, 6.5], [3.3, 6.5]], expect.objectContaining({ maxZoom: 15 }));
+  adapter.fit.mockClear();
+  view.rerender(<Map assets={[]} hotspots={[]} selected={null} onSelect={adapter.onSelect} focusExtent={[181, 6.5, 182, 6.5]} />);
+  expect(adapter.fit).not.toHaveBeenCalled();
+});
 it('fits every position in a multipart feeder without passing nested parts as positions', () => {
   const feeder = fixtureAsset(5, null, 'feeder');
   feeder.geometry = { type: 'MultiLineString', coordinates: [[[3.3, 6.5], [3.4, 6.5]], [[3.5, 6.5], [3.6, 6.5]]] };
