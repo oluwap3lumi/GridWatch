@@ -12,7 +12,7 @@ export type Body_upload_api_v1_imports_post = { "file": string; "layer_type": La
 export type CommitImport = { "valid_rows_only"?: boolean; "rescore"?: boolean; "accept_scoring_defaults"?: boolean; };
 export type ErrorResponse = { "detail": string; };
 export type FeatureImportance = { "feature": string; "mean_absolute_contribution": number; };
-export type FeederSummary = { "feeder_id": number; "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
+export type FeederSummary = { "feeder_id": (number) | (null); "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
 export type HTTPValidationError = { "detail"?: Array<ValidationError>; };
 export type HealthResponse = { "status": "ok"; };
 export type HotspotCollection = { "type": "FeatureCollection"; "features": Array<HotspotFeature>; "pagination": PageMetadata; "radius_m": 500; "minimum_assets": 3; };
@@ -21,6 +21,7 @@ export type HotspotProperties = { "asset_count": number; "asset_ids": Array<numb
 export type ImportBatchDetail = { "id": string; "filename": string; "format": (ImportFormat) | (null); "layer_type": LayerType; "status": BatchStatus; "row_counts": RowCounts; "detected_columns": Array<string>; "column_mapping": Record<string, string>; "crs_detected": (string) | (null); "crs_selected": (string) | (null); "created_at": string; "completed_at": (string) | (null); "expires_at": string; "preview": Array<PreviewRow>; "job": (JobProgress) | (null); "errors": Array<RowIssue>; "extent": (Array<number>) | (null); "error_code": (string) | (null); "warnings": Array<string>; };
 export type ImportFormat = "csv" | "shapefile" | "geojson";
 export type ImportHistory = { "items": Array<ImportBatchDetail>; "total": number; };
+export type InferenceWarning = "SYNTHETIC_HISTORY" | "NO_ASSET_OUTAGE_HISTORY" | "OUTSIDE_TRAINING_EXTENT" | "IMPUTED_ATTRIBUTES" | "UNAVAILABLE_FEEDER_ANCHOR";
 export type JobOperation = "inspect" | "validate" | "commit" | "rollback" | "rescore" | "cleanup";
 export type JobProgress = { "id": string; "operation": JobOperation; "status": JobStatus; "processed": number; "total": number; "error_code": (string) | (null); };
 export type JobStatus = "queued" | "running" | "completed" | "failed";
@@ -40,15 +41,17 @@ export type PointGeometry = { "type": "Point"; "coordinates": Position; };
 export type Position = [number, number];
 export type PreviewRow = { "row_number": number; "properties": Record<string, JsonValue>; "geometry": (AssetGeometry) | (null); "errors": Array<RowIssue>; "warnings": Array<RowIssue>; };
 export type ReadinessResponse = { "status": "ready" | "not_ready"; };
-export type RescoreResponse = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
+export type RescoreRequest = { "accept_scoring_defaults"?: boolean; };
+export type RescoreResponse = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "provenance": (ScoringProvenance) | (null); "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; "unscored_by_reason": Record<string, number>; };
 export type RiskBand = "low" | "medium" | "high" | "critical";
 export type RiskFactor = { "feature": string; "feature_value": number; "contribution": number; "contribution_unit": "log_odds"; };
-export type RiskSnapshot = { "score": number; "band": RiskBand; "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "top_factors": Array<RiskFactor>; };
+export type RiskSnapshot = { "provenance": (ScoringProvenance) | (null); "imputed_fields": Array<string>; "imputed_values": Record<string, (number) | (string)>; "warnings": Array<InferenceWarning>; "score": number; "band": RiskBand; "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "top_factors": Array<RiskFactor>; };
 export type RiskSummary = { "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; "by_feeder": Array<FeederSummary>; "scoring": (ScoringStamp) | (null); };
 export type RouteMetric = { "method": string; "route": string; "status_code": number; "requests": number; "duration_seconds": number; };
 export type RowCounts = { "total": number; "valid": number; "invalid": number; "inserted": number; "updated": number; };
 export type RowIssue = { "row_number": number; "field": string; "code": string; "reason": string; };
-export type ScoringStamp = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; };
+export type ScoringProvenance = { "training_data_hash": string; "inference_data_hash": string; "imputation_policy": "per-type-median-v1"; "defaults_accepted": boolean; "history_context": "synthetic_demo"; };
+export type ScoringStamp = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "provenance": (ScoringProvenance) | (null); };
 export type ValidateImport = { "column_mapping"?: Record<string, string>; "source_crs"?: (string) | (null); "date_format"?: "auto" | "day_first" | "month_first"; };
 export type ValidationError = { "loc": Array<(string) | (number)>; "msg": string; "type": string; "input"?: unknown; "ctx"?: Record<string, unknown>; };
 
@@ -159,7 +162,7 @@ export interface ApiOperations {
     path: Record<string, never>;
     query: Record<string, never>;
     response: RescoreResponse;
-    body: never;
+    body: (RescoreRequest) | (null);
   };
   "GET /api/v1/risk/summary": {
     path: Record<string, never>;

@@ -126,7 +126,7 @@ def test_downgrade_refuses_to_destroy_import_history(engine: Engine) -> None:
             command.downgrade(Config("alembic.ini"), "0002")
         with Session(engine) as session:
             assert session.get(ImportBatch, batch) is not None
-            assert session.scalar(text("SELECT version_num FROM alembic_version")) == "0003"
+            assert session.scalar(text("SELECT version_num FROM alembic_version")) == "0004"
     finally:
         with Session(engine) as session, session.begin():
             session.execute(text("DELETE FROM import_batches WHERE id=:id"), {"id": batch})

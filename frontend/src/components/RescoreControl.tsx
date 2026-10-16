@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { refreshViews, useRescore } from '../api/hooks';
 
 export function RescoreControl() {
+  const [acceptDefaults, setAcceptDefaults] = useState(false);
   const mutation = useRescore();
   const client = useQueryClient();
   const refresh = useMutation({ mutationFn: () => refreshViews(client), retry: false });
@@ -9,8 +11,9 @@ export function RescoreControl() {
   const saved = mutation.data;
   const refreshed = refresh.isError ? false : refresh.isSuccess ? refresh.data : saved?.refreshed;
   return <section className="rescore-bar" aria-label="Rescore network">
-    <div><strong>Score the network</strong><p>Use the latest passing model and the historical data cutoff. Training is a separate step.</p></div>
-    <div className="rescore-actions"><button className="primary rescore-button" disabled={pending} onClick={() => { refresh.reset(); mutation.mutate(); }}>{mutation.isPending ? 'Rescoring and refreshing…' : 'Rescore network'}</button>
+    <div><strong>Score the network</strong><p>Use the latest passing model and the historical data cutoff. Training is a separate step.</p>
+      <label className="rescore-consent"><input type="checkbox" checked={acceptDefaults} disabled={pending} onChange={(event) => setAcceptDefaults(event.target.checked)} /> Use training medians for missing uploaded model attributes (synthetic demo only)</label></div>
+    <div className="rescore-actions"><button className="primary rescore-button" disabled={pending} onClick={() => { refresh.reset(); mutation.mutate({ accept_scoring_defaults: acceptDefaults }); }}>{mutation.isPending ? 'Rescoring and refreshing…' : 'Rescore network'}</button>
       <button disabled={pending} onClick={() => refresh.mutate()}>{refresh.isPending ? 'Refreshing views…' : 'Refresh views'}</button></div>
     <div className="rescore-message" aria-live="polite">
       {mutation.isPending && <p role="status">Computing scores and refreshing views. This may take a moment.</p>}
@@ -20,6 +23,7 @@ export function RescoreControl() {
       {refresh.isSuccess && !refresh.data && !saved && <p role="alert">Views could not refresh. The previous data remains visible; try Refresh views again.</p>}
       {refresh.isSuccess && refresh.data && !saved && <p role="status">Views refreshed from the API.</p>}
       {refresh.isError && !saved && <p role="alert">View refresh failed: {refresh.error.message}</p>}
+      {saved && !pending && saved.scored.unscored_assets > 0 && <p>{saved.scored.unscored_assets} assets remain unscored. Assets installed on or after the historical cutoff are excluded.</p>}
     </div>
   </section>;
 }

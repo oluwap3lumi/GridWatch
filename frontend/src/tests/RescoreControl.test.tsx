@@ -78,6 +78,20 @@ it('does not retry a conflicting POST or replace the displayed snapshot', async 
   expect(screen.getByRole('button', { name: 'Rescore network' })).toBeEnabled();
 });
 
+it('requires an explicit checkbox choice before sending median-default consent', async () => {
+  const fetchMock = vi.fn(async (url: string, options?: RequestInit) => options?.method === 'POST'
+    ? response(scored) : read(url, nextFleet));
+  vi.stubGlobal('fetch', fetchMock);
+  show();
+  const consent = screen.getByRole('checkbox', { name: /Use training medians/ });
+  expect(consent).not.toBeChecked();
+  await userEvent.click(consent);
+  await userEvent.click(screen.getByRole('button', { name: 'Rescore network' }));
+  expect(await screen.findByText(/Scores saved for 13 assets/)).toBeInTheDocument();
+  const post = fetchMock.mock.calls.find(([, options]) => options?.method === 'POST');
+  expect(JSON.parse(String(post?.[1]?.body))).toEqual({ accept_scoring_defaults: true });
+});
+
 it('distinguishes saved scores from failed GET refreshes and retries reads without another POST', async () => {
   let broken = true;
   const fetchMock = vi.fn(async (url: string, options?: RequestInit) => options?.method === 'POST' ? response(scored)

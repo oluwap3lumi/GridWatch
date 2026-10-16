@@ -35,6 +35,9 @@ export function AssetPanel({ asset, stamp, close, refresh }: { asset: AssetFeatu
     <div className="panel-body">
       <div className="asset-risk"><strong>{p.risk ? percent(p.risk.score) : '—'}</strong><div><RiskBadge asset={asset} /><small>Predicted failure in 30 days</small></div></div>
       <p className="detail-caption">Historical synthetic forecast · Cutoff {p.risk?.prediction_cutoff ? `${date(p.risk.prediction_cutoff)} UTC` : 'unavailable'}</p>
+      {p.risk?.warnings.includes('SYNTHETIC_HISTORY') && <p className="detail-caption" role="note">Demo estimate using synthetic weather and outage history. This model has not been validated for uploaded assets.</p>}
+      {!!p.risk?.imputed_fields.length && <p className="detail-caption">Training medians used for scoring: {p.risk.imputed_fields.map((field) => `${field.replaceAll('_', ' ')}: ${p.risk?.imputed_values[field] ?? 'median'}`).join(', ')}.</p>}
+      {p.risk?.warnings.includes('OUTSIDE_TRAINING_EXTENT') && <p className="detail-caption">This asset is outside the training network extent.</p>}
       <div className="section-heading"><h3>Why this score?</h3><span>TreeSHAP</span></div>
       <p className="detail-caption">Signed contributions to uncalibrated model log-odds. Positive raises risk; negative lowers it. These are associations, not probability changes or causes.</p>
       {factors.length ? <ul className="factors">{factors.map((factor) => <Factor key={factor.feature} factor={factor} maximum={maximum} />)}</ul> : <p className="empty-detail">{p.risk ? 'No explanation factors available.' : 'This asset has not been scored.'}</p>}

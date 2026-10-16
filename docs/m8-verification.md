@@ -134,3 +134,60 @@ hosted M8 CI, and final clean-clone verification remain in the approved later
 slices. A requested rescore already runs as a separate job and preserves a
 successful import on failure; existing strict model/corpus checks remain intact
 until slice 4 implements the inference contract.
+
+## Slice 4: Uploaded-asset inference and provenance
+
+Uploaded assets now participate in inference while remaining outside default
+synthetic training and its corpus hash. Scoring retains the exact registered
+training-hash/artifact checks and separately hashes the full inference snapshot,
+including asset import provenance and revisions. Both hashes and the latest
+passing model are checked again before atomic score replacement.
+
+Migration `0004` adds derived `risk_scores.inference_metadata`; legacy rows retain
+unknown provenance until rescored. New scores expose training/inference hashes,
+default consent, `per-type-median-v1`, the synthetic history context, applied
+default fields/values, and fixed diagnostics. Defaults require explicit consent,
+are computed only from eligible verified training assets of the same type, and
+never replace stored uploaded attributes. Supplied dates on/after the historical
+cutoff remain unscored, with reason counts in the rescore response.
+
+Background import scoring forwards the consent option and preserves a committed
+import if scoring fails. The Model page now has an unchecked opt-in checkbox;
+asset details identify synthetic history, applied median values, and locations
+outside the training extent. The map uses a neutral network caption when uploaded
+data is present and logs only a fixed render error code. Unassigned point assets
+share a nullable feeder group, rather than inflating feeder counts.
+MultiLineString feeders use the same `ST_PointOnSurface` representative location
+in inference and hotspots; existing LineString midpoints remain unchanged.
+
+| Command run | Result |
+| --- | --- |
+| `uv run --project backend pytest -c backend/pyproject.toml backend/tests/unit/test_inference.py -q --tb=short` | 8 pure inference tests passed |
+| `make lint` | Ruff/format, strict mypy (79 sources), ESLint and TypeScript passed |
+| `make types` | Regenerated consent, provenance, diagnostics, nullable feeder and rescore contracts |
+| `make test` | Final run: 121 backend unit passed, one Windows symlink skip; 62 real PostGIS integration passed; 28 frontend passed |
+| `make up` | Migration `0004` applied; PostGIS, API, web and import worker healthy; production frontend build passed |
+| `make smoke` | Existing model/artifacts verified, 3,000 assets rescored at 2026-01-01; unchanged bands (812 low, 1,828 medium, 90 high, 270 critical) and 41 hotspots; all API/PostGIS checks passed |
+
+The final full test run includes applied median values in both API metadata and
+the asset panel. Tests exercise CSV background rescoring with explicit consent;
+GeoJSON and EPSG:32631 Shapefile poles and multipart feeders; missing-consent
+failure with retained imports/saved scores; inference revision changes during
+prediction; future installations; nullable feeder totals; and migration/readiness
+checks. The CSV case scores 3,001 assets while confirming the original 3,000
+predictions are unchanged, nullable uploaded attributes remain null, default
+training still contains exactly 3,000 assets, and synthetic run registration
+continues to use the training-only hash. Undo invalidates scores and restores the
+original scoreable corpus. Frontend tests cover consent, displayed default
+values/limitations, and provenance-aware snapshot comparison.
+
+Early focused runs exposed a stale migration-version assertion and a test that
+attempted registration inside the read-only training snapshot. The assertion and
+test transaction boundaries were corrected before the final passing run. Native
+error details and uploaded rows/coordinates are not logged. No dependency was
+added and no existing model artifact needed replacement.
+
+The Upload page remains slice 5. Generator sample files, updated screenshots,
+hosted M8 CI and final clean-clone acceptance remain slice 6. No claim of model
+accuracy on real infrastructure is made: uploaded estimates still use the
+invented demo weather/outage context and historical cutoff.

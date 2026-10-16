@@ -59,7 +59,7 @@ export function Map(props: MapProps) {
       map.on('mousemove', (event) => {
         if (map?.isStyleLoaded()) map.getCanvas().style.cursor = map.queryRenderedFeatures(event.point, { layers: ['asset-points', 'feeder-lines'] }).length ? 'pointer' : '';
       });
-      map.on('error', (event) => { console.error('MapLibre error:', event.error); setStatus('Map unavailable. Use the asset list to explore the network.'); });
+      map.on('error', () => { console.error('MAP_RENDER_FAILED'); setStatus('Map unavailable. Use the asset list to explore the network.'); });
       if (typeof ResizeObserver !== 'undefined') { observer = new ResizeObserver(() => map?.resize()); observer.observe(container.current); }
     } catch { setStatus('Map unavailable. Use the asset list to explore the network.'); }
     return () => { observer?.disconnect(); map?.remove(); mapRef.current = null; };
@@ -75,8 +75,8 @@ export function Map(props: MapProps) {
     if (props.selected) fit(mapRef.current, [props.selected], 15);
   }, [ready, props.selected]);
   return <section className="map-panel" aria-label="Infrastructure map">
-    <div className="map-caption"><span className="live-dot" />LAGOS AREA <small>Synthetic network · EPSG:4326</small></div>
-    <div ref={container} className="map" aria-label="MapLibre map of Lagos" />
+    <div className="map-caption"><span className="live-dot" />ASSET NETWORK <small>{props.assets.some((asset) => asset.properties.batch_id !== null) ? 'Includes uploaded data' : 'Synthetic network'} · EPSG:4326</small></div>
+    <div ref={container} className="map" aria-label="MapLibre asset map" />
     <button className="fit-map" disabled={!ready || !props.assets.length} onClick={() => mapRef.current && fit(mapRef.current, props.assets)}>Fit visible assets</button>
     <p className="map-status" role="status">{status}</p>
   </section>;

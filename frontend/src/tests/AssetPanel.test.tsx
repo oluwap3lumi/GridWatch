@@ -18,6 +18,22 @@ function show(refresh = vi.fn(), selected = asset) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+it('identifies synthetic inference history and median defaults for an uploaded score', async () => {
+  const selected = fixtureAsset(99, 0.09);
+  selected.properties.capacity_kva = null;
+  selected.properties.risk!.warnings = ['SYNTHETIC_HISTORY', 'IMPUTED_ATTRIBUTES', 'OUTSIDE_TRAINING_EXTENT'];
+  selected.properties.risk!.imputed_fields = ['capacity_kva'];
+  selected.properties.risk!.imputed_values = { capacity_kva: 250 };
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ asset: selected,
+    outages: { type: 'FeatureCollection', features: [], pagination: { total: 0, limit: 10, offset: 0, next_offset: null } } }))));
+  show(vi.fn(), selected);
+  expect(screen.getByRole('note')).toHaveTextContent('not been validated for uploaded assets');
+  expect(screen.getByText(/Training medians used for scoring: capacity kva: 250/)).toBeInTheDocument();
+  expect(screen.getByText('Unknown')).toBeInTheDocument();
+  expect(screen.getByText('This asset is outside the training network extent.')).toBeInTheDocument();
+  expect(await screen.findByText('No outage events recorded for this asset.')).toBeInTheDocument();
+});
+
 it('shows missing imported attributes as unknown without inventing source values', async () => {
   const selected = fixtureAsset(9, null);
   selected.properties = { ...selected.properties, feeder_id: null, install_date: null,

@@ -23,6 +23,9 @@ def database_ready(engine: Engine) -> bool:
               AND EXISTS (SELECT 1 FROM information_schema.columns
                 WHERE table_schema = 'public' AND table_name = 'risk_scores'
                   AND column_name = 'prediction_cutoff')
+              AND EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'risk_scores'
+                  AND column_name = 'inference_metadata')
         """)
             )
         )

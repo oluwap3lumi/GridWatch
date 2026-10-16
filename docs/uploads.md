@@ -122,7 +122,7 @@ errors/warnings for that preview, plus all row errors in `errors`.
 | --- | --- |
 | `POST /imports` | Multipart `file` and `layer_type=transformer`, `pole`, or `feeder_line` |
 | `POST /imports/{id}/validate` | Optional JSON `column_mapping`, `source_crs`, `date_format` |
-| `POST /imports/{id}/commit` | JSON `valid_rows_only` (default false), `rescore` (default false), `accept_scoring_defaults` (reserved for slice 4) |
+| `POST /imports/{id}/commit` | JSON `valid_rows_only` (default false), `rescore` (default false), `accept_scoring_defaults` (default false) |
 | `POST /imports/{id}/rollback` | No body; undo the batch or return a conflict |
 | `GET /imports` | History with `limit` 1–100 (default 20) and `offset` |
 | `GET /imports/{id}` | Counts, status, preview, errors, extent, latest job and progress |
@@ -168,9 +168,8 @@ writing, so a conflict arising after enqueue becomes a failed rollback job with
 restores them. Derived risk scores are invalidated by both commit and rollback.
 
 Optional rescoring is a separate durable job after import commits. Its failure
-leaves the batch imported; inspect the latest job status. Imported-asset scoring
-is implemented in slice 4; the existing strict model/corpus checks can reject it
-in this slice. No replacement model or invented asset defaults are applied here.
+leaves the batch imported; inspect the latest job status. Slice 4 adds the
+inference contract described below while preserving the strict training checks.
 
 Jobs use PostgreSQL leases and token checks before committing effects. A heartbeat
 renews leases and persists row progress. Worker restart recovers expired leases;
@@ -187,3 +186,60 @@ Content-Length; multipart headers/fields have a 64 KiB allowance above the file
 limit. Actual file bytes are independently checked against `UPLOAD_MAX_BYTES`.
 Stored paths are UUID-derived; the original basename is sanitized for history.
 Reports include canonical fields and fixed reasons rather than uploaded values.
+
+## Slice 4: Scoring uploaded assets
+
+Start with the seeded and trained demo described in the README before uploading.
+Asset uploads alone do not provide a trained model, weather history or failure
+labels. `make seed` continues to refuse a deployment containing private import
+history; it cannot erase uploaded data to create that missing reference corpus.
+
+To commit and request scoring with the approved default policy:
+
+```json
+{"valid_rows_only":true,"rescore":true,"accept_scoring_defaults":true}
+```
+
+The import transaction finishes before the scoring job starts. Poll the latest
+job in batch detail for its outcome; a missing consent produces
+`SCORING_DEFAULTS_REQUIRED`, while the committed batch remains imported. Retry
+scoring through `POST /api/v1/risk/rescore` with
+`{"accept_scoring_defaults":true}` or the Model page checkbox and Rescore button.
+The checkbox starts unchecked. A bodyless rescore still works for the original
+demo or uploaded assets that supply every required model attribute.
+
+When needed, the in-memory `per-type-median-v1` policy substitutes installation
+date, capacity, load factor and vegetation using only the hash-verified synthetic
+training corpus. Defaults never replace stored source values. Material and last
+maintenance are not features and do not require defaults. Missing feeder links
+use the asset location for weather assignment; unresolved source references remain
+available for later parent imports as before.
+
+Default training and its hash exclude imported assets and associated outages.
+Inference retains that training hash check and also hashes the entire source
+snapshot, including batch IDs/revisions. Both are rechecked before score writes.
+Migration `0004` stores each score's inference metadata. Asset API risk values
+include `provenance`, `imputed_fields`, the applied `imputed_values`, and warnings; summary scoring stamps carry
+the same global provenance. Legacy scores have unknown/null provenance until
+rescored. The asset panel identifies applied medians and synthetic history.
+
+| Diagnostic | Meaning |
+| --- | --- |
+| `SYNTHETIC_HISTORY` | Weather/outage context comes from the invented demo network |
+| `NO_ASSET_OUTAGE_HISTORY` | No historical outage is available for this asset in that context; zero count is not evidence of reliability |
+| `IMPUTED_ATTRIBUTES` | Model inputs include explicitly accepted training medians |
+| `OUTSIDE_TRAINING_EXTENT` | Representative location lies outside the reference asset bounding box |
+| `UNAVAILABLE_FEEDER_ANCHOR` | The feeder is unavailable at the cutoff; features use the asset location |
+
+The demo cutoff remains 2026-01-01 for its 2025-12-31 weather end date. Supplied
+installation dates on or after that cutoff remain unscored. `unscored_by_reason`
+in the rescore response counts `NOT_INSTALLED_AT_CUTOFF`; those assets remain
+visible with null risk. Dates and coordinates are not adjusted to manufacture
+a prediction. These are illustrative model outputs with no validation for real
+utility assets, including those inside the training extent.
+
+LineString feeder locations use their midpoint, and MultiLineStrings use
+`ST_PointOnSurface`, consistently for inference and hotspots. The main map keeps
+their full geometries. Summary groups with `feeder_id=null` contain unassigned
+point assets, so they do not inflate the displayed feeder count. Import or
+rollback still invalidates every derived risk score; rescore to replace the batch.

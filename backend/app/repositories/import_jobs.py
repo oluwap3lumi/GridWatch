@@ -12,7 +12,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_artifact_root
-from app.core.errors import ModelNotFound, ModelUnavailable, ScoringConflict
+from app.core.errors import (
+    ModelNotFound,
+    ModelUnavailable,
+    ScoringConflict,
+    ScoringDefaultsRequired,
+)
 from app.db.models import Asset, ImportBatch, ImportJob, ImportRow
 from app.repositories.imports import Progress, claim, locked_batch, mutate, rollback
 from app.schemas.imports import LayerType, ValidateImport
@@ -181,7 +186,11 @@ def process_one(engine: Engine, storage: UploadStorage) -> bool:
                 from app.services.scoring import rescore
 
                 # Its own asset/scoring transactions; failure preserves the imported batch.
-                rescore(engine, get_artifact_root())
+                rescore(
+                    engine,
+                    get_artifact_root(),
+                    accept_scoring_defaults=job.options.get("accept_scoring_defaults") is True,
+                )
             stopped.set()
             monitor.join()
             session.refresh(job, with_for_update=True)
@@ -221,6 +230,7 @@ def process_one(engine: Engine, storage: UploadStorage) -> bool:
                 ModelNotFound: "MODEL_NOT_FOUND",
                 ModelUnavailable: "MODEL_UNAVAILABLE",
                 ScoringConflict: "SCORING_CONFLICT",
+                ScoringDefaultsRequired: "SCORING_DEFAULTS_REQUIRED",
                 IntegrityError: "IMPORT_CONSTRAINT",
             }.get(type(error), "IMPORT_FAILED")
         )

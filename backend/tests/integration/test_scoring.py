@@ -17,8 +17,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_artifact_root, get_engine
-from app.core.errors import ModelUnavailable, ScoringConflict
-from app.db.models import Asset, ModelRun, OutageEvent, RiskScore, WeatherObservation
+from app.core.errors import ModelUnavailable, ScoringConflict, ScoringDefaultsRequired
+from app.db.models import (
+    Asset,
+    ImportBatch,
+    ImportChange,
+    ImportJob,
+    ImportRow,
+    ModelRun,
+    OutageEvent,
+    RiskScore,
+    WeatherObservation,
+)
 from app.main import app
 from app.repositories.model_runs import register_run
 from app.repositories.risk import risk_summary, scoring_lock
@@ -31,6 +41,21 @@ from app.services.risk_policy import risk_band
 from app.services.scoring import rescore
 from app.services.train import dependency_versions
 from tests.integration.test_read_api import request
+
+
+@pytest.fixture
+def imported_scoring(scoring_data: Path, engine: Engine, tmp_path: Path, monkeypatch):
+    from app.core.uploads import UploadSettings
+    from app.services.upload_storage import UploadStorage
+
+    monkeypatch.setenv("MODEL_ARTIFACT_DIR", str(scoring_data))
+    monkeypatch.setenv("UPLOAD_STAGING_DIR", str(tmp_path))
+    yield scoring_data, UploadStorage(UploadSettings.from_env())
+    with Session(engine) as session, session.begin():
+        session.execute(delete(RiskScore))
+        session.execute(delete(Asset).where(Asset.batch_id.is_not(None)))
+        for model in (ImportChange, ImportRow, ImportJob, ImportBatch):
+            session.execute(delete(model))
 
 
 @pytest.fixture(scope="module")
@@ -319,3 +344,230 @@ def test_http_corrupt_registry_and_failed_newest_model(scoring_data: Path, engin
     finally:
         with Session(engine) as session, session.begin():
             session.execute(delete(ModelRun).where(ModelRun.model_version == "newer-failed"))
+
+
+def test_uploaded_csv_background_scoring_keeps_training_separate(
+    imported_scoring, engine: Engine
+) -> None:
+    from app.api.v1.imports import commit, undo
+    from app.repositories.import_jobs import process_one
+    from app.repositories.imports import detail
+    from app.schemas.imports import CommitImport
+    from tests.integration.test_import_lifecycle import start
+
+    root, storage = imported_scoring
+    rescore(engine, root)
+    seeded_scores = snapshot(engine)
+    with Session(engine) as session, session.begin():
+        original = read_training_inputs(session)
+    identifier = start(engine, storage, b"external_id,lat,lon\nT-demo,6.5,3.3\n")
+    commit(identifier, engine, CommitImport(rescore=True, accept_scoring_defaults=True))
+    assert process_one(engine, storage) and process_one(engine, storage)
+    with Session(engine) as session:
+        result = detail(session, identifier)
+        assert result.status == "imported" and result.job.status == "completed", (
+            result.job.error_code
+        )
+        asset = session.scalar(select(Asset).where(Asset.external_id == "T-demo"))
+        assert (
+            asset.install_date is None and asset.capacity_kva is None and asset.load_factor is None
+        )
+        asset_id = asset.id
+        score = session.get(RiskScore, asset_id)
+        assert 0 <= score.score <= 1 and score.top_factors
+        assert set(score.inference_metadata["imputed_fields"]) == {
+            "install_date",
+            "capacity_kva",
+            "load_factor",
+            "vegetation_index",
+        }
+        provenance = score.inference_metadata["provenance"]
+        assert set(score.inference_metadata["imputed_values"]) == set(
+            score.inference_metadata["imputed_fields"]
+        )
+        assert provenance["training_data_hash"] == original.data_hash
+        assert provenance["inference_data_hash"] != original.data_hash
+        assert provenance["defaults_accepted"] is True
+        summary = risk_summary(session)
+        assert summary.scored_assets == 3001
+        assert summary.by_feeder[-1].feeder_id is None and summary.by_feeder[-1].total_assets == 1
+    assert snapshot(engine)[:3000] == seeded_scores
+    with Session(engine) as session, session.begin():
+        training = read_training_inputs(session)
+        assert training.data_hash == original.data_hash and len(training.assets) == 3000
+        assert asset_id not in {a.id for a in training.assets}
+    with Session(engine) as session, session.begin():
+        # Registering a synthetic run still compares the training-only snapshot.
+        register_run(
+            session,
+            version="ignored-upload-run",
+            trained_at=datetime.now(UTC),
+            data_hash=original.data_hash,
+            features=list(FEATURE_COLUMNS),
+            metrics={},
+            git_sha="c" * 40,
+        )
+        session.execute(delete(ModelRun).where(ModelRun.model_version == "ignored-upload-run"))
+    status, payload = request(f"/api/v1/assets/{asset_id}")
+    view = AssetDetail.model_validate(payload)
+    assert status == 200 and view.asset.properties.capacity_kva is None
+    assert "SYNTHETIC_HISTORY" in view.asset.properties.risk.warnings
+    assert view.asset.properties.risk.provenance == summary.scoring.provenance
+    undo(identifier, engine)
+    process_one(engine, storage)
+    with Session(engine) as session:
+        assert not session.scalars(select(RiskScore)).first()
+    assert rescore(engine, root).scored_assets == 3000
+
+
+def test_default_consent_failure_is_explicit_and_preserves_saved_scores(
+    imported_scoring, engine: Engine
+) -> None:
+    from app.api.v1.imports import commit
+    from app.repositories.import_jobs import process_one
+    from app.repositories.imports import detail
+    from app.schemas.imports import CommitImport
+    from tests.integration.test_import_lifecycle import start
+
+    root, storage = imported_scoring
+    identifier = start(engine, storage, b"external_id,lat,lon\nT-demo,6.5,3.3\n")
+    commit(identifier, engine, CommitImport(rescore=True))
+    process_one(engine, storage)
+    process_one(engine, storage)
+    with Session(engine) as session:
+        result = detail(session, identifier)
+        assert result.status == "imported" and result.job.error_code == "SCORING_DEFAULTS_REQUIRED"
+    rescore(engine, root, accept_scoring_defaults=True)
+    saved = snapshot(engine)
+    with pytest.raises(ScoringDefaultsRequired):
+        rescore(engine, root)
+    assert snapshot(engine) == saved
+    status, payload = request("/api/v1/risk/rescore", method="POST")
+    assert status == 409 and "Explicitly accept" in payload["detail"]
+
+
+@pytest.mark.parametrize("layer", ["pole", "feeder_line"])
+@pytest.mark.parametrize("format", ["geojson", "shapefile"])
+def test_uploaded_spatial_formats_score_and_multipart_hotspots_work(
+    imported_scoring, engine: Engine, layer: str, format: str
+) -> None:
+    import json
+
+    from pyproj import CRS
+
+    from app.api.v1.imports import commit
+    from app.repositories.import_jobs import process_one
+    from app.repositories.risk import hotspots
+    from app.schemas.imports import CommitImport
+    from tests.integration.test_import_lifecycle import start
+    from tests.unit.test_import_parsing import packed, shape_members
+
+    root, storage = imported_scoring
+    if format == "shapefile":
+        data = packed(
+            shape_members(prj=CRS.from_epsg(32631).to_wkt().encode(), lines=layer == "feeder_line")
+        )
+        filename = "network.zip"
+    else:
+        geometry = (
+            {"type": "Point", "coordinates": [3.3, 6.5]}
+            if layer == "pole"
+            else {
+                "type": "MultiLineString",
+                "coordinates": [[[3.3, 6.5], [3.31, 6.51]], [[3.32, 6.5], [3.33, 6.51]]],
+            }
+        )
+        data = json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"external_id": "001"}, "geometry": geometry}
+                ],
+            }
+        ).encode()
+        filename = "network.geojson"
+    identifier = start(engine, storage, data, filename, layer)
+    commit(identifier, engine, CommitImport())
+    process_one(engine, storage)
+    result = rescore(engine, root, accept_scoring_defaults=True)
+    assert result.scored_assets == 3001 and result.unscored_assets == 0
+    with Session(engine) as session, session.begin():
+        asset = session.scalar(select(Asset).where(Asset.batch_id == identifier))
+        score = session.get(RiskScore, asset.id)
+        assert score.top_factors and score.inference_metadata["imputed_fields"]
+        assert "SYNTHETIC_HISTORY" in score.inference_metadata["warnings"]
+        if format == "shapefile":
+            assert "OUTSIDE_TRAINING_EXTENT" in score.inference_metadata["warnings"]
+        score.score, score.band = 0.12, "critical"
+        session.flush()
+        # Ensure an elevated MultiLineString reaches the geography clustering path.
+        assert hotspots(session, limit=500, offset=0).type == "FeatureCollection"
+        summary = risk_summary(session)
+        assert summary.by_feeder[-1].feeder_id == (None if layer == "pole" else asset.id)
+
+
+def test_import_revision_change_during_scoring_is_rejected(
+    imported_scoring, engine: Engine, monkeypatch
+) -> None:
+    import ml.predict as predictor
+
+    from app.api.v1.imports import commit
+    from app.repositories.import_jobs import process_one
+    from app.schemas.imports import CommitImport
+    from tests.integration.test_import_lifecycle import start
+
+    root, storage = imported_scoring
+    identifier = start(engine, storage, b"external_id,lat,lon\nT-demo,6.5,3.3\n")
+    commit(identifier, engine, CommitImport())
+    process_one(engine, storage)
+    rescore(engine, root, accept_scoring_defaults=True)
+    saved = snapshot(engine)
+    original_predict = predictor.score_features
+
+    def concurrent_change(bundle, frame):
+        values = original_predict(bundle, frame)
+        with Session(engine) as session, session.begin():
+            # Identical values, but a new asset revision must still fence the old snapshot.
+            session.execute(
+                text("UPDATE assets SET load_factor=load_factor WHERE batch_id=:id"),
+                {"id": identifier},
+            )
+        return values
+
+    monkeypatch.setattr(predictor, "score_features", concurrent_change)
+    with pytest.raises(ScoringConflict, match="changed while scoring"):
+        rescore(engine, root, accept_scoring_defaults=True)
+    assert snapshot(engine) == saved
+
+
+def test_future_import_is_unscored_and_http_consent_is_honoured(
+    imported_scoring, engine: Engine
+) -> None:
+    from app.api.v1.imports import commit
+    from app.repositories.import_jobs import process_one
+    from app.schemas.imports import CommitImport
+    from tests.integration.test_import_lifecycle import start
+
+    _, storage = imported_scoring
+    identifier = start(
+        engine,
+        storage,
+        b"external_id,lat,lon,install_date\nnew,6.5,3.3,2027-01-01\nunknown,6.5,3.3,\n",
+    )
+    commit(identifier, engine, CommitImport())
+    process_one(engine, storage)
+    assert request("/api/v1/risk/rescore", method="POST", body={})[0] == 409
+    status, payload = request(
+        "/api/v1/risk/rescore", method="POST", body={"accept_scoring_defaults": True}
+    )
+    result = RescoreResponse.model_validate(payload)
+    assert status == 200 and result.scored_assets == 3001 and result.unscored_assets == 1
+    assert result.unscored_by_reason == {"NOT_INSTALLED_AT_CUTOFF": 1}
+    assert result.provenance.defaults_accepted is True
+    with Session(engine) as session:
+        future = session.scalar(select(Asset).where(Asset.external_id == "new"))
+        assert session.get(RiskScore, future.id) is None
+        summary = risk_summary(session)
+        assert (
+            summary.by_feeder[-1].total_assets == 2 and summary.by_feeder[-1].unscored_assets == 1
+        )

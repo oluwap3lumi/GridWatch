@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { ApiError, get, loadFleet, rescore, SnapshotChangedError, stampKey } from './client';
-import type { ScoringStamp } from './generated';
+import type { ScoringStamp, RescoreRequest } from './generated';
 
 export function useFleet() {
   return useQuery({ queryKey: ['fleet'], queryFn: ({ signal }) => loadFleet(signal), staleTime: 30_000,
@@ -31,8 +31,8 @@ export async function refreshViews(client: QueryClient): Promise<boolean> {
 
 export function useRescore() {
   const client = useQueryClient();
-  return useMutation({ mutationKey: ['rescore'], retry: false, mutationFn: async () => {
-    const scored = await rescore();
+  return useMutation({ mutationKey: ['rescore'], retry: false, mutationFn: async (options: RescoreRequest) => {
+    const scored = await rescore(options);
     // A failed GET must never turn a committed POST into an invitation to retry it.
     let refreshed = false;
     try { refreshed = await refreshViews(client); } catch { /* Scores were already saved. */ }

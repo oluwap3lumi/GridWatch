@@ -13,6 +13,8 @@ from app.db.models import RiskScore
 from app.repositories.assets import page_metadata
 from app.repositories.model_runs import latest_passing_run
 from app.repositories.seed import data_fingerprint
+from app.repositories.spatial import ASSET_POINT
+from app.schemas.inference import InferenceDetails, ScoringProvenance
 from app.schemas.risk import (
     BandCounts,
     FeederSummary,
@@ -60,18 +62,24 @@ def replace_scores(
     predictions: tuple["AssetPrediction", ...],
     version: str,
     data_hash: str,
+    inference_hash: str,
+    provenance: ScoringProvenance,
+    inference_details: dict[int, InferenceDetails],
     cutoff: datetime,
     scored_at: datetime,
 ) -> None:
     if not session.in_transaction():
         raise ValueError("Score persistence requires an explicit transaction")
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": CORPUS_LOCK})
-    if data_fingerprint(session) != data_hash:
+    if (
+        data_fingerprint(session, training_only=True) != data_hash
+        or data_fingerprint(session, include_provenance=True) != inference_hash
+    ):
         raise ScoringConflict(
             "Source data changed while scoring; retry with a matching trained model"
         )
     latest = latest_passing_run(session)
-    if latest is None or latest.model_version != version:
+    if latest is None or latest.model_version != version or latest.data_hash != data_hash:
         raise ScoringConflict("A newer passing model became available while scoring; retry")
     rows: list[dict[str, object]] = []
     for prediction in predictions:
@@ -83,6 +91,9 @@ def replace_scores(
                 "model_version": version,
                 "scored_at": scored_at,
                 "prediction_cutoff": cutoff,
+                "inference_metadata": inference_details.get(
+                    prediction.asset_id, InferenceDetails(provenance=provenance)
+                ).model_dump(mode="json"),
                 "top_factors": [
                     {
                         "feature": factor.feature,
@@ -101,7 +112,12 @@ def replace_scores(
 
 def scoring_stamp(session: Session) -> ScoringStamp | None:
     stamps = session.execute(
-        select(RiskScore.model_version, RiskScore.scored_at, RiskScore.prediction_cutoff).distinct()
+        select(
+            RiskScore.model_version,
+            RiskScore.scored_at,
+            RiskScore.prediction_cutoff,
+            RiskScore.inference_metadata["provenance"].label("provenance"),
+        ).distinct()
     ).all()
     if not stamps:
         return None
@@ -115,19 +131,21 @@ def scoring_stamp(session: Session) -> ScoringStamp | None:
 def risk_summary(session: Session) -> RiskSummary:
     records = session.execute(
         text(
-            "SELECT coalesce(a.feeder_id,a.id) AS feeder_id,count(*) AS total_assets,"
+            "SELECT CASE WHEN a.type='feeder' THEN a.id ELSE a.feeder_id END AS feeder_id,"
+            "count(*) AS total_assets,"
             "count(r.asset_id) AS scored_assets,"
             "count(*) FILTER (WHERE r.band='low') AS low,"
             "count(*) FILTER (WHERE r.band='medium') AS medium,"
             "count(*) FILTER (WHERE r.band='high') AS high,"
             "count(*) FILTER (WHERE r.band='critical') AS critical "
             "FROM assets a LEFT JOIN risk_scores r ON r.asset_id=a.id "
-            "GROUP BY coalesce(a.feeder_id,a.id) ORDER BY feeder_id"
+            "GROUP BY CASE WHEN a.type='feeder' THEN a.id ELSE a.feeder_id END "
+            "ORDER BY feeder_id NULLS LAST"
         )
     )
     feeders = [
         FeederSummary(
-            feeder_id=int(row.feeder_id),
+            feeder_id=int(row.feeder_id) if row.feeder_id is not None else None,
             total_assets=int(row.total_assets),
             scored_assets=int(row.scored_assets),
             unscored_assets=int(row.total_assets - row.scored_assets),
@@ -164,8 +182,7 @@ def hotspots(
     # Feeders use the same line midpoint as feature engineering, not the whole line extent.
     cte = (
         "WITH high_assets AS (SELECT a.id,r.score,r.band,"
-        "CASE WHEN a.type='feeder' THEN ST_LineInterpolatePoint(a.geom,0.5) "
-        "ELSE a.geom END AS point FROM assets a JOIN risk_scores r ON r.asset_id=a.id "
+        f"{ASSET_POINT} AS point FROM assets a JOIN risk_scores r ON r.asset_id=a.id "
         "WHERE r.band IN ('high','critical')"
     )
     params: dict[str, object] = {}

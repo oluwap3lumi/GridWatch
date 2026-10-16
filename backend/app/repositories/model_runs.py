@@ -24,7 +24,7 @@ def register_run(
     if not session.in_transaction():
         raise ValueError("Model registration requires an explicit transaction")
     session.execute(text("SELECT pg_advisory_xact_lock(5139241308840342595)"))
-    if data_fingerprint(session) != data_hash:
+    if data_fingerprint(session, training_only=True) != data_hash:
         raise ValueError("Training corpus changed during fitting; run make train again")
     run = ModelRun(
         model_version=version,

@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import Field, FiniteFloat
 
 from app.schemas.base import ApiModel
+from app.schemas.inference import InferenceDetails
 from app.schemas.spatial import AssetGeometry, PointGeometry
 
 
@@ -30,7 +31,7 @@ class RiskFactor(ApiModel):
     contribution_unit: Literal["log_odds"] = "log_odds"
 
 
-class RiskSnapshot(ApiModel):
+class RiskSnapshot(InferenceDetails):
     score: FiniteFloat = Field(ge=0, le=1)
     band: RiskBand
     model_version: str

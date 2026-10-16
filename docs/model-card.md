@@ -58,7 +58,8 @@ deterministically spaced validation rows.
 `make train` stores each fitted bundle (both calibrated estimators and raw XGBoost)
 with metrics, reliability bins, SHAP importance, feature schema/configuration,
 locked dependency versions, source Git SHA, UTC timestamp, and the SHA-256 of all
-persisted source rows including geometry. `model_runs` records the same provenance
+persisted training source rows including geometry. Uploaded assets and their
+associated outages are excluded from default training. `model_runs` records the same provenance
 and numerical metrics. Registration takes the seed loader's advisory lock and
 rechecks the data hash; a changed corpus rejects registration and removes the new
 artifacts. Earlier versions are preserved. Files are checksummed before reload.
@@ -82,3 +83,34 @@ demo bands use 0.05, 0.08, and 0.10 boundaries; these are not operational thresh
 `risk_scores` stores calibrated probabilities and up to five strongest signed
 TreeSHAP factors in raw log-odds units. Those factors do not sum to the calibrated
 probability and must not be interpreted as causal effects. See [the API contract](api.md).
+
+## M8 inference on uploaded assets
+
+The existing synthetic model can produce illustrative scores for uploaded assets.
+This adds no evidence of accuracy on real infrastructure. The runtime retains
+the strict model/training hash check, reads uploaded assets in the same database
+snapshot, and records a separate inference hash including import revisions.
+Concurrent source changes or model replacement prevent the score transaction
+from replacing a consistent saved batch.
+
+Missing installation date, capacity, load factor, and vegetation can use per-type
+medians from the verified synthetic training corpus **only with explicit opt-in**.
+Installation dates use the nearest integer day to the median date ordinal.
+Defaults are calculated once per type, in memory, and never written into uploaded
+source attributes or fitted from uploaded data. Scores identify every defaulted
+field and applied value and carry `history_context=synthetic_demo`. Material and maintenance date
+are not inputs to the current model and are not imputed.
+
+Weather and prior outage context still come from the synthetic demonstration.
+An uploaded asset with no matched historic outage has a zero outage count; that
+means missing asset history rather than proof of reliability, and is explicitly
+flagged. Features outside the training asset extent are flagged. These flags do
+not establish calibration, geographic coverage or real-world suitability inside
+that extent. Assets installed on or after the historical prediction cutoff remain
+unscored; their dates are never silently backdated. An unavailable feeder anchor
+uses the point asset's own location with a diagnostic.
+
+LineStrings retain their historical midpoint feature location. MultiLineString
+feeders use PostGIS `ST_PointOnSurface`; the hotspot repository uses the same
+representative point. Uploaded asset geometry and nullable source values remain
+available unchanged through the main map API.

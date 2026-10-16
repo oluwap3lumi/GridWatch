@@ -106,7 +106,9 @@ def build_features(inputs: TrainingInputs, cutoff: datetime, config: FeatureConf
         stations[record.location].append(record)
     station_locations = tuple(sorted(stations))
     assets_by_id = {asset.id: asset for asset in inputs.assets}
-    anchors = tuple(assets_by_id[asset.feeder_id or asset.id].location for asset in eligible)
+    anchors = tuple(
+        assets_by_id.get(asset.feeder_id or asset.id, asset).location for asset in eligible
+    )
     station_ids = (
         distances_m(anchors, station_locations).argmin(axis=1) if station_locations else None
     )

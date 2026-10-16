@@ -7,7 +7,7 @@ from app.api.v1.queries import BBoxQuery, Limit, Offset
 from app.core.errors import ModelNotFound, ModelUnavailable, ScoringConflict
 from app.repositories.risk import hotspots, risk_summary
 from app.schemas.assets import ErrorResponse
-from app.schemas.risk import HotspotCollection, RescoreResponse, RiskSummary
+from app.schemas.risk import HotspotCollection, RescoreRequest, RescoreResponse, RiskSummary
 from app.services.scoring import rescore
 
 router = APIRouter(prefix="/risk", tags=["risk"])
@@ -38,10 +38,14 @@ def risk_hotspots(
     response_model=RescoreResponse,
     responses={409: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
-def risk_rescore(engine: DatabaseEngine, root: ArtifactRoot) -> RescoreResponse:
+def risk_rescore(
+    engine: DatabaseEngine, root: ArtifactRoot, options: RescoreRequest | None = None
+) -> RescoreResponse:
     """Recompute the fleet's 30-day predictions using the latest registered passing model."""
     try:
-        return rescore(engine, root)
+        return rescore(
+            engine, root, accept_scoring_defaults=bool(options and options.accept_scoring_defaults)
+        )
     except (ModelNotFound, ScoringConflict) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ModelUnavailable as exc:

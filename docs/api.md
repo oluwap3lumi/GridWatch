@@ -58,22 +58,25 @@ probability and uncalibrated SHAP output space separate.
 
 A session advisory lock rejects simultaneous rescoring. After computation,
 the persistence transaction takes the seed/training corpus lock, rechecks the
-source hash and latest passing version, and replaces the complete score batch.
+training and inference hashes and latest passing version, and replaces the complete score batch.
 Failures roll back without changing the previous batch. Retraining during
 scoring causes a conflict if a newer passing version becomes available.
 
 Feeder summaries include the feeder asset itself and its child assets, so their
 totals sum to the global fleet totals. Hotspot membership is transitive: three
 assets connected by two 500-metre edges form one group even when the endpoints
-are farther apart. Smaller groups are excluded. Feeders use their line midpoint
+are farther apart. Smaller groups are excluded. LineString feeders use their line midpoint
 for distance, matching the ML feature location; cluster centres use PostGIS
 geography centroids. A bbox filters original asset geometries before clustering.
+MultiLineString feeders use `ST_PointOnSurface`, consistently with inference.
+Unassigned poles/transformers share a summary group with `feeder_id = null`;
+they are included in global totals without being counted as individual feeders.
 
 ## Risk and model routes
 
 M6 operations routes: `GET /api/v1/health` (and `/health`) remain process liveness.
-`GET /api/v1/ready` requires PostGIS and all five serving tables plus the prediction
-cutoff column; it returns typed `ready` / 503 `not_ready` JSON without requiring
+`GET /api/v1/ready` requires PostGIS, serving/import tables, and prediction cutoff
+and inference metadata columns; it returns typed `ready` / 503 `not_ready` JSON without requiring
 seed data or a trained model. Startup applies Alembic migrations before serving.
 `GET /api/v1/metrics` returns typed JSON process uptime, in-flight requests, completed
 request counts and cumulative seconds by method, route template, and status code.
@@ -96,9 +99,12 @@ exception messages. Unexpected errors return a generic typed 500 response.
 - `GET /risk/hotspots`: paginated GeoJSON cluster centres with member asset IDs,
   mean/maximum probability, and band counts. Accepts `bbox`, `limit`, and `offset`.
   No scores or no qualifying clusters returns an empty collection.
-- `POST /risk/rescore`: no request body; synchronously computes and atomically
+- `POST /risk/rescore`: optional JSON `{"accept_scoring_defaults":true}`; synchronously computes and atomically
   saves a complete batch. The response reports the model, cutoff, actual scoring
-  time, scored/unscored counts, and band totals.
+  time, scored/unscored counts, band totals, provenance, and `unscored_by_reason`.
+  Missing uploaded model attributes require explicit consent to per-type medians;
+  the default is false. Without consent the request returns 409 and preserves
+  the saved score batch. Future installations remain unscored at the historical cutoff.
 - `GET /model`: latest passing available model, validation metrics, feature list,
   sorted mean absolute TreeSHAP importance, provenance, and `scored_model_version`.
   That last value is null before scoring and may lag the available model after
@@ -109,6 +115,16 @@ Errors: `GET /model` returns 404 when no passing model exists. Rescoring returns
 passing model registered during computation. Invalid/missing registered artifacts
 return 503 for both model information and rescoring. Mixed legacy scoring batches
 return 409 from summary/model until rescoring restores a single batch.
+
+Migration `0004` adds `risk_scores.inference_metadata`. New asset risk snapshots
+contain `provenance` (training and inference hashes, imputation policy, consent,
+synthetic history context), `imputed_fields`, `imputed_values`, and fixed `warnings`. Legacy scores
+have null provenance and empty diagnostics until rescored. The global scoring
+stamp includes the same provenance, allowing clients to reject mixed snapshots.
+Uploads remain outside default training and its hash; the full inference hash
+includes asset import provenance/revisions and all weather/outage rows. Both
+hashes are rechecked before score replacement. Uploaded estimates use synthetic
+history and are not validated utility forecasts. See [uploads](uploads.md).
 
 For the existing trained stack in PowerShell:
 

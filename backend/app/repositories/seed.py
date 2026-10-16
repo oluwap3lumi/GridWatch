@@ -20,8 +20,10 @@ class SeedResult:
     database_hash: str
 
 
-def data_fingerprint(session: Session) -> str:
-    """Hash persisted source values in ID order; import bookkeeping is not model input."""
+def data_fingerprint(
+    session: Session, *, training_only: bool = False, include_provenance: bool = False
+) -> str:
+    """Hash a stable source snapshot, optionally isolating training or including provenance."""
     session.execute(text("SET LOCAL TIME ZONE 'UTC'"))
     digest = hashlib.sha256()
     for table in ("assets", "weather_obs", "outage_events"):
@@ -31,10 +33,19 @@ def data_fingerprint(session: Session) -> str:
         projection = (
             "(to_jsonb(d) - ARRAY['external_id','external_feeder_id','external_pole_id',"
             "'pole_id','batch_id','last_batch_id','revision'])::text"
-            if table == "assets"
+            if table == "assets" and not include_provenance
             else "to_jsonb(d)::text"
         )
-        records = session.execute(text(f"SELECT {projection} FROM {table} d ORDER BY id"))
+        clause = ""
+        if training_only:
+            if table == "assets":
+                clause = " WHERE d.batch_id IS NULL"
+            elif table == "outage_events":
+                clause = (
+                    " WHERE EXISTS (SELECT 1 FROM assets a WHERE a.id=d.asset_id "
+                    "AND a.batch_id IS NULL)"
+                )
+        records = session.execute(text(f"SELECT {projection} FROM {table} d{clause} ORDER BY id"))
         for value in records.scalars():
             digest.update(value.encode("utf-8") + b"\n")
     return digest.hexdigest()

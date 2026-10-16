@@ -119,6 +119,7 @@ h3 { font-size: 13px; margin: 0; }
 .rescore-bar strong { font-size: 12px; }
 .rescore-bar p { font-size: 10px; color: #6b8072; margin: 5px 0 0; line-height: 1.6; }
 .rescore-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rescore-consent { display: flex; align-items: start; gap: 7px; font-size: 11px; line-height: 1.5; margin-top: 8px; }
 .rescore-button { background: #245b4b; color: white; border-color: #245b4b; }
 .rescore-message { width: 100%; }
 .rescore-message:empty { display: none; }

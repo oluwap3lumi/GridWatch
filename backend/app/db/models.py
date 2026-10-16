@@ -161,6 +161,9 @@ class RiskScore(Base):
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     prediction_cutoff: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     top_factors: Mapped[list[dict[str, str | float]]] = mapped_column(JSONB)
+    inference_metadata: Mapped[dict[str, JsonValue]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
 
 
 class ImportBatch(Base):

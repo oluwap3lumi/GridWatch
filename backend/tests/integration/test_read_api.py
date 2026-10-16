@@ -20,12 +20,19 @@ from app.schemas.assets import AssetCollection, AssetDetail, OutageCollection
 
 
 def request(
-    path: str, query: dict[str, str | int | float] | None = None, method: str = "GET"
+    path: str,
+    query: dict[str, str | int | float] | None = None,
+    method: str = "GET",
+    body: dict[str, object] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     messages: list[dict[str, Any]] = []
 
     async def receive() -> dict[str, Any]:
-        return {"type": "http.request", "body": b"", "more_body": False}
+        return {
+            "type": "http.request",
+            "body": json.dumps(body).encode() if body is not None else b"",
+            "more_body": False,
+        }
 
     async def send(message: dict[str, Any]) -> None:
         messages.append(message)
@@ -42,7 +49,7 @@ def request(
                 "raw_path": path.encode(),
                 "query_string": urlencode(query or {}).encode(),
                 "root_path": "",
-                "headers": [],
+                "headers": [(b"content-type", b"application/json")] if body is not None else [],
                 "client": ("127.0.0.1", 1234),
                 "server": ("localhost", 8000),
             },

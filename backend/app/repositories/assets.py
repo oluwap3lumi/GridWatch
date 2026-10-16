@@ -20,6 +20,7 @@ from app.schemas.assets import (
     RiskFactor,
     RiskSnapshot,
 )
+from app.schemas.inference import InferenceDetails
 from app.schemas.spatial import AssetGeometry, BoundingBox, PointGeometry
 
 
@@ -47,6 +48,7 @@ def asset_feature(asset: Asset, risk: RiskScore | None, geometry: str) -> AssetF
             scored_at=risk.scored_at,
             prediction_cutoff=risk.prediction_cutoff,
             top_factors=[RiskFactor.model_validate(factor) for factor in risk.top_factors],
+            **InferenceDetails.model_validate(risk.inference_metadata).model_dump(),
         )
     )
     return AssetFeature(

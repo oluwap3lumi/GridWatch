@@ -6,24 +6,36 @@ from pathlib import Path
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from app.core.errors import ModelNotFound, ModelUnavailable, ScoringConflict
+from app.core.errors import (
+    ModelNotFound,
+    ModelUnavailable,
+    ScoringConflict,
+    ScoringDefaultsRequired,
+)
 from app.repositories.model_runs import latest_passing_run
 from app.repositories.risk import replace_scores, risk_summary, scoring_lock
-from app.repositories.training import read_training_inputs
+from app.repositories.seed import data_fingerprint
+from app.repositories.training import read_imported_assets, read_training_inputs
+from app.schemas.inference import InferenceDetails, ScoringProvenance
 from app.schemas.risk import RescoreResponse
 from app.services.artifacts import load_artifacts
 from app.services.model_registry import registered_documents
 
 
-def rescore(engine: Engine, root: Path) -> RescoreResponse:
+def rescore(
+    engine: Engine, root: Path, *, accept_scoring_defaults: bool = False
+) -> RescoreResponse:
     # Defer native ML imports so startup/OpenAPI/read routes do not load SHAP/XGBoost.
     from ml.features import FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION, build_features, utc
+    from ml.inference import DefaultsRequired, prepare_inference
     from ml.predict import score_features
 
     with scoring_lock(engine):
         with Session(engine, expire_on_commit=False) as session, session.begin():
             try:
                 inputs = read_training_inputs(session)
+                imported = read_imported_assets(session)
+                inference_hash = data_fingerprint(session, include_provenance=True)
             except ValueError as exc:
                 raise ScoringConflict(
                     "No complete synthetic source corpus is available; run make seed"
@@ -61,7 +73,38 @@ def rescore(engine: Engine, root: Path) -> RescoreResponse:
             days=365
         ):
             raise ScoringConflict("Scoring requires at least 365 days of historical observations")
-        predictions = score_features(bundle, build_features(inputs, cutoff, bundle.feature_config))
+        try:
+            prepared = prepare_inference(
+                inputs, imported, cutoff, accept_defaults=accept_scoring_defaults
+            )
+        except DefaultsRequired as exc:
+            raise ScoringDefaultsRequired(
+                "Uploaded assets lack model attributes. Explicitly accept scoring defaults "
+                "to use per-type training medians for this synthetic demo."
+            ) from exc
+        except ValueError as exc:
+            raise ScoringConflict(
+                "No verified reference values are available for uploaded model inputs"
+            ) from exc
+        provenance = ScoringProvenance(
+            training_data_hash=inputs.data_hash,
+            inference_data_hash=inference_hash,
+            defaults_accepted=accept_scoring_defaults,
+        )
+        details = {
+            asset_id: InferenceDetails.model_validate(
+                {
+                    "provenance": provenance.model_dump(),
+                    "imputed_fields": list(fields),
+                    "imputed_values": prepared.imputed_values[asset_id],
+                    "warnings": list(prepared.warnings[asset_id]),
+                }
+            )
+            for asset_id, fields in prepared.imputed_fields.items()
+        }
+        predictions = score_features(
+            bundle, build_features(prepared.inputs, cutoff, bundle.feature_config)
+        )
         scored_at = datetime.now(UTC)
         with Session(engine) as session, session.begin():
             replace_scores(
@@ -69,6 +112,9 @@ def rescore(engine: Engine, root: Path) -> RescoreResponse:
                 predictions=predictions,
                 version=run.model_version,
                 data_hash=inputs.data_hash,
+                inference_hash=inference_hash,
+                provenance=provenance,
+                inference_details=details,
                 cutoff=cutoff,
                 scored_at=scored_at,
             )
@@ -80,4 +126,6 @@ def rescore(engine: Engine, root: Path) -> RescoreResponse:
             scored_assets=summary.scored_assets,
             unscored_assets=summary.unscored_assets,
             counts_by_band=summary.counts_by_band,
+            provenance=provenance,
+            unscored_by_reason=prepared.unscored_by_reason,
         )

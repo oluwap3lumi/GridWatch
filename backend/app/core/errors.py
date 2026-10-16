@@ -5,6 +5,10 @@ class ScoringConflict(RuntimeError):
     """A competing operation or changed corpus prevents a consistent score update."""
 
 
+class ScoringDefaultsRequired(ScoringConflict):
+    """Explicit consent is required before substituting missing uploaded model inputs."""
+
+
 class ModelNotFound(RuntimeError):
     """No registered model has passed the required evaluation gate."""
 

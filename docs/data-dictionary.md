@@ -124,3 +124,14 @@ cleanup applies to staging rather than persistent imported-data history.
 
 Seeding also refuses any database containing import history. Imports and undo
 invalidate derived scores atomically, and optional rescoring runs separately.
+
+Migration `0004` adds `risk_scores.inference_metadata` (non-null JSONB, default
+`{}` for legacy rows). New values contain `provenance` with training/inference
+SHA-256 hashes, default consent, `imputation_policy=per-type-median-v1` and
+`history_context=synthetic_demo`; plus per-asset `imputed_fields`, `imputed_values`, and fixed
+`warnings`. Legacy API values expose null provenance and empty diagnostic lists.
+The training hash excludes imported assets and their outages; inference hashes
+all source rows including import provenance/revisions. Existing synthetic model
+hashes remain valid. These fields record derived inputs, not edits to assets.
+Unassigned point assets share the nullable feeder summary group. Rescore responses
+include counts of assets excluded by the historical installation cutoff.

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, get, loadFleet, SnapshotChangedError } from '../api/client';
+import { ApiError, get, loadFleet, SnapshotChangedError, stampKey } from '../api/client';
+import { stamp } from './fixtures';
 import type { AssetFeature, RiskSummary } from '../api/generated';
 
 const summary: RiskSummary = { total_assets: 2, scored_assets: 0, unscored_assets: 2,
@@ -13,6 +14,12 @@ function respond(body: unknown) { return new Response(JSON.stringify(body), { st
 afterEach(() => vi.unstubAllGlobals());
 
 describe('typed fleet client', () => {
+  it('detects changed inference provenance even when model and timestamps match', () => {
+    const provenance = { training_data_hash: 'a'.repeat(64), inference_data_hash: 'b'.repeat(64),
+      imputation_policy: 'per-type-median-v1' as const, defaults_accepted: true, history_context: 'synthetic_demo' as const };
+    expect(stampKey({ ...stamp, provenance })).not.toEqual(stampKey({ ...stamp,
+      provenance: { ...provenance, inference_data_hash: 'c'.repeat(64) } }));
+  });
   it('loads subsequent pages before returning the fleet and forwards cancellation', async () => {
     const controller = new AbortController();
     const fetchMock = vi.fn().mockResolvedValueOnce(respond(summary))

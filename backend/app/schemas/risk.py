@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, FiniteFloat
 
 from app.schemas.assets import PageMetadata
 from app.schemas.base import ApiModel
+from app.schemas.inference import ScoringProvenance
 from app.schemas.spatial import PointGeometry
 
 
@@ -22,16 +23,22 @@ class ScoringStamp(ApiModel):
     scored_at: datetime
     prediction_cutoff: datetime | None
     horizon_days: Literal[30] = 30
+    provenance: ScoringProvenance | None = None
+
+
+class RescoreRequest(ApiModel):
+    accept_scoring_defaults: bool = False
 
 
 class RescoreResponse(ScoringStamp):
     scored_assets: int = Field(ge=0)
     unscored_assets: int = Field(ge=0)
     counts_by_band: BandCounts
+    unscored_by_reason: dict[str, int] = Field(default_factory=dict)
 
 
 class FeederSummary(ApiModel):
-    feeder_id: int
+    feeder_id: int | None
     total_assets: int = Field(ge=0)
     scored_assets: int = Field(ge=0)
     unscored_assets: int = Field(ge=0)

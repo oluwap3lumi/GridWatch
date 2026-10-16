@@ -1,4 +1,4 @@
-import type { ApiOperations, AssetFeature, HotspotFeature, PageMetadata, RiskSummary, ScoringStamp } from './generated';
+import type { ApiOperations, AssetFeature, HotspotFeature, PageMetadata, RiskSummary, ScoringStamp, RescoreRequest } from './generated';
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -17,16 +17,17 @@ export async function get<K extends Extract<keyof ApiOperations, `GET ${string}`
   return request(operation, path, query, signal);
 }
 
-export function rescore() {
-  return request('POST /api/v1/risk/rescore', {}, {});
+export function rescore(options: RescoreRequest = {}) {
+  return request('POST /api/v1/risk/rescore', {}, {}, undefined, options);
 }
 
-async function request<K extends keyof ApiOperations>(operation: K, path: ApiOperations[K]['path'], query: ApiOperations[K]['query'], signal?: AbortSignal): Promise<ApiOperations[K]['response']> {
+async function request<K extends keyof ApiOperations>(operation: K, path: ApiOperations[K]['path'], query: ApiOperations[K]['query'], signal?: AbortSignal, body?: ApiOperations[K]['body']): Promise<ApiOperations[K]['response']> {
   let url = operation.split(' ')[1];
   for (const [key, value] of Object.entries(path)) url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value !== null && value !== undefined) params.set(key, String(value));
-  const response = await fetch(`${url}${params.size ? `?${params}` : ''}`, { method: operation.split(' ')[0], signal });
+  const response = await fetch(`${url}${params.size ? `?${params}` : ''}`, { method: operation.split(' ')[0], signal,
+    ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) });
   if (!response.ok) {
     let message = `Request failed (${response.status}).`;
     try {
@@ -62,7 +63,9 @@ async function pages<T extends { id: number }>(load: (offset: number) => Promise
 }
 
 export function stampKey(stamp: ScoringStamp | null): string {
-  return stamp ? JSON.stringify([stamp.model_version, stamp.scored_at, stamp.prediction_cutoff, stamp.horizon_days]) : 'unscored';
+  const p = stamp?.provenance;
+  return stamp ? JSON.stringify([stamp.model_version, stamp.scored_at, stamp.prediction_cutoff, stamp.horizon_days,
+    p ? [p.training_data_hash, p.inference_data_hash, p.imputation_policy, p.defaults_accepted, p.history_context] : null]) : 'unscored';
 }
 
 export interface FleetSnapshot { assets: AssetFeature[]; hotspots: HotspotFeature[]; summary: RiskSummary }
