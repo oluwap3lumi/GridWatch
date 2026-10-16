@@ -1,5 +1,17 @@
 # Model card
 
+## Intended use and data
+
+GridWatch is a portfolio demonstration of temporal prediction, GIS, model
+provenance, and explanations. It is not validated for utility operations.
+All examples use the deterministic synthetic corpus from `data/generator`:
+3,000 invented assets, 14,600 weather observations, and 4,608 outages over 730
+days ending 2025-12-31. Coordinates lie in a Lagos-area bounding box but do not
+identify real infrastructure. No real utility, customer, or employer data is used.
+See the [data dictionary](data-dictionary.md) for units and generation assumptions.
+
+## Target, features, and temporal evaluation
+
 The prediction target is at least one outage in the
 30 days beginning at a monthly UTC cutoff. Features use only strictly earlier
 events and weather, with at least 365 days of available history before a cutoff.

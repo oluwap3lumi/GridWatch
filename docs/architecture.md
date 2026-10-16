@@ -1,9 +1,13 @@
 # Architecture
 
-M0 runs a PostGIS 3 / PostgreSQL 16 database, a FastAPI service, and a React/Vite web app.
+GridWatch runs a PostGIS 3 / PostgreSQL 16 database, a FastAPI service, and a React/Vite web app.
 Compose waits for database and API health checks before starting dependent services.
 The web development server proxies `/api` to FastAPI. `/health` is an API liveness alias;
-the canonical OpenAPI route is `/api/v1/health`. Database readiness is separate in M0.
+the canonical OpenAPI route is `/api/v1/health`. `/api/v1/ready` checks PostGIS and
+the required migrated schema. API startup runs Alembic before serving HTTP;
+Compose gates the web container on API readiness. An empty migrated database is
+ready before explicit seeding/training. Production replicas would need a separate
+migration job. Compose exposes loopback web/API ports, with no database host port.
 
 The initial MapLibre map uses a local background style and requires no external tiles.
 Vite bundles MapLibre's worker explicitly as an ES module, so its URL works in both
@@ -97,3 +101,24 @@ history queries are invalidated, and selected detail keys follow the new scoring
 stamp. Failed POSTs leave the displayed cache intact. A committed score batch with
 a failed subsequent GET is reported as saved with a refresh failure, and the
 separate Refresh views action retries reads without sending another scoring POST.
+
+## Operations and delivery
+
+An outer ASGI wrapper attaches validated or generated request IDs to all HTTP
+responses, including errors. JSON request logs record fixed route templates,
+methods, status codes, and elapsed time, omitting query strings, headers, request
+bodies, and exception text. `/api/v1/metrics` exposes lock-protected process-local
+request counts, cumulative durations, in-flight count, and uptime. Unknown paths
+share one bucket, and counters reset at restart.
+
+GitHub Actions installs lockfile dependencies with npm/uv caching and pinned action
+revisions. It runs lint/types, unit and real ephemeral PostGIS integration tests,
+frontend tests/build, generated-type drift checks, Docker startup, seed/train,
+two-run reproducibility, and HTTP/PostGIS smoke verification. The local
+`make verify-clean` command uses a separate clone, Compose project, ports,
+credentials, database volumes, and artifact directory, then exercises a database
+outage and recovery before removing that project's containers and volumes.
+
+The local web container runs Vite's development server, which proxies `/api` to
+FastAPI. Production hosting, authentication, scheduled retraining, and persistent
+metrics storage remain outside M0–M7.
