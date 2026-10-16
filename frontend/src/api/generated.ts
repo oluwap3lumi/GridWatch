@@ -7,6 +7,9 @@ export type AssetGeometry = (PointGeometry) | (LineGeometry) | (MultiLineGeometr
 export type AssetKind = "transformer" | "feeder" | "pole";
 export type AssetProperties = { "type": AssetKind; "feeder_id": (number) | (null); "external_id": (string) | (null); "pole_id": (number) | (null); "batch_id": (string) | (null); "install_date": (string) | (null); "capacity_kva": (number) | (null); "load_factor": (number) | (null); "material": (string) | (null); "vegetation_index": (number) | (null); "last_maintenance_date": (string) | (null); "risk": (RiskSnapshot) | (null); };
 export type BandCounts = { "low": number; "medium": number; "high": number; "critical": number; };
+export type BatchStatus = "uploaded" | "validated" | "imported" | "failed" | "rolled_back";
+export type Body_upload_api_v1_imports_post = { "file": string; "layer_type": LayerType; };
+export type CommitImport = { "valid_rows_only"?: boolean; "rescore"?: boolean; "accept_scoring_defaults"?: boolean; };
 export type ErrorResponse = { "detail": string; };
 export type FeatureImportance = { "feature": string; "mean_absolute_contribution": number; };
 export type FeederSummary = { "feeder_id": number; "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
@@ -15,6 +18,14 @@ export type HealthResponse = { "status": "ok"; };
 export type HotspotCollection = { "type": "FeatureCollection"; "features": Array<HotspotFeature>; "pagination": PageMetadata; "radius_m": 500; "minimum_assets": 3; };
 export type HotspotFeature = { "type": "Feature"; "id": number; "geometry": PointGeometry; "properties": HotspotProperties; };
 export type HotspotProperties = { "asset_count": number; "asset_ids": Array<number>; "mean_score": number; "max_score": number; "counts_by_band": BandCounts; };
+export type ImportBatchDetail = { "id": string; "filename": string; "format": (ImportFormat) | (null); "layer_type": LayerType; "status": BatchStatus; "row_counts": RowCounts; "detected_columns": Array<string>; "column_mapping": Record<string, string>; "crs_detected": (string) | (null); "crs_selected": (string) | (null); "created_at": string; "completed_at": (string) | (null); "expires_at": string; "preview": Array<PreviewRow>; "job": (JobProgress) | (null); "errors": Array<RowIssue>; "extent": (Array<number>) | (null); "error_code": (string) | (null); "warnings": Array<string>; };
+export type ImportFormat = "csv" | "shapefile" | "geojson";
+export type ImportHistory = { "items": Array<ImportBatchDetail>; "total": number; };
+export type JobOperation = "inspect" | "validate" | "commit" | "rollback" | "rescore" | "cleanup";
+export type JobProgress = { "id": string; "operation": JobOperation; "status": JobStatus; "processed": number; "total": number; "error_code": (string) | (null); };
+export type JobStatus = "queued" | "running" | "completed" | "failed";
+export type JsonValue = unknown;
+export type LayerType = "transformer" | "pole" | "feeder_line";
 export type LineGeometry = { "type": "LineString"; "coordinates": Array<Position>; };
 export type MetricsResponse = { "scope": "process"; "uptime_seconds": number; "in_flight": number; "requests": number; "routes": Array<RouteMetric>; };
 export type ModelHistory = { "items": Array<ModelVersion>; "pagination": PageMetadata; };
@@ -27,6 +38,7 @@ export type OutageProperties = { "asset_id": number; "started_at": string; "dura
 export type PageMetadata = { "total": number; "limit": number; "offset": number; "next_offset": (number) | (null); };
 export type PointGeometry = { "type": "Point"; "coordinates": Position; };
 export type Position = [number, number];
+export type PreviewRow = { "row_number": number; "properties": Record<string, JsonValue>; "geometry": (AssetGeometry) | (null); "errors": Array<RowIssue>; "warnings": Array<RowIssue>; };
 export type ReadinessResponse = { "status": "ready" | "not_ready"; };
 export type RescoreResponse = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; };
 export type RiskBand = "low" | "medium" | "high" | "critical";
@@ -34,7 +46,10 @@ export type RiskFactor = { "feature": string; "feature_value": number; "contribu
 export type RiskSnapshot = { "score": number; "band": RiskBand; "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; "top_factors": Array<RiskFactor>; };
 export type RiskSummary = { "total_assets": number; "scored_assets": number; "unscored_assets": number; "counts_by_band": BandCounts; "by_feeder": Array<FeederSummary>; "scoring": (ScoringStamp) | (null); };
 export type RouteMetric = { "method": string; "route": string; "status_code": number; "requests": number; "duration_seconds": number; };
+export type RowCounts = { "total": number; "valid": number; "invalid": number; "inserted": number; "updated": number; };
+export type RowIssue = { "row_number": number; "field": string; "code": string; "reason": string; };
 export type ScoringStamp = { "model_version": string; "scored_at": string; "prediction_cutoff": (string) | (null); "horizon_days": 30; };
+export type ValidateImport = { "column_mapping"?: Record<string, string>; "source_crs"?: (string) | (null); "date_format"?: "auto" | "day_first" | "month_first"; };
 export type ValidationError = { "loc": Array<(string) | (number)>; "msg": string; "type": string; "input"?: unknown; "ctx"?: Record<string, unknown>; };
 
 export interface ApiOperations {
@@ -42,55 +57,114 @@ export interface ApiOperations {
     path: Record<string, never>;
     query: { "type"?: (AssetKind) | (null); "min_risk"?: (number) | (null); "band"?: (RiskBand) | (null); "limit"?: number; "offset"?: number; "bbox"?: (string) | (null); };
     response: AssetCollection;
+    body: never;
   };
   "GET /api/v1/assets/{asset_id}": {
     path: { "asset_id": number; };
     query: { "limit"?: number; "offset"?: number; };
     response: AssetDetail;
+    body: never;
   };
   "GET /api/v1/health": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: HealthResponse;
+    body: never;
+  };
+  "POST /api/v1/imports": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    response: ImportBatchDetail;
+    body: Body_upload_api_v1_imports_post;
+  };
+  "GET /api/v1/imports": {
+    path: Record<string, never>;
+    query: { "limit"?: number; "offset"?: number; };
+    response: ImportHistory;
+    body: never;
+  };
+  "GET /api/v1/imports/templates/{layer_type}.csv": {
+    path: { "layer_type": "transformer" | "pole" | "feeder_line"; };
+    query: Record<string, never>;
+    response: string;
+    body: never;
+  };
+  "GET /api/v1/imports/{batch_id}": {
+    path: { "batch_id": string; };
+    query: Record<string, never>;
+    response: ImportBatchDetail;
+    body: never;
+  };
+  "POST /api/v1/imports/{batch_id}/commit": {
+    path: { "batch_id": string; };
+    query: Record<string, never>;
+    response: ImportBatchDetail;
+    body: (CommitImport) | (null);
+  };
+  "GET /api/v1/imports/{batch_id}/errors.csv": {
+    path: { "batch_id": string; };
+    query: Record<string, never>;
+    response: string;
+    body: never;
+  };
+  "POST /api/v1/imports/{batch_id}/rollback": {
+    path: { "batch_id": string; };
+    query: Record<string, never>;
+    response: ImportBatchDetail;
+    body: never;
+  };
+  "POST /api/v1/imports/{batch_id}/validate": {
+    path: { "batch_id": string; };
+    query: Record<string, never>;
+    response: ImportBatchDetail;
+    body: (ValidateImport) | (null);
   };
   "GET /api/v1/metrics": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: MetricsResponse;
+    body: never;
   };
   "GET /api/v1/model": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: ModelInfo;
+    body: never;
   };
   "GET /api/v1/model/history": {
     path: Record<string, never>;
     query: { "limit"?: number; "offset"?: number; };
     response: ModelHistory;
+    body: never;
   };
   "GET /api/v1/outages": {
     path: Record<string, never>;
     query: { "asset_id"?: (number) | (null); "limit"?: number; "offset"?: number; "bbox"?: (string) | (null); "started_after"?: (string) | (null); "started_before"?: (string) | (null); };
     response: OutageCollection;
+    body: never;
   };
   "GET /api/v1/ready": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: ReadinessResponse;
+    body: never;
   };
   "GET /api/v1/risk/hotspots": {
     path: Record<string, never>;
     query: { "limit"?: number; "offset"?: number; "bbox"?: (string) | (null); };
     response: HotspotCollection;
+    body: never;
   };
   "POST /api/v1/risk/rescore": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: RescoreResponse;
+    body: never;
   };
   "GET /api/v1/risk/summary": {
     path: Record<string, never>;
     query: Record<string, never>;
     response: RiskSummary;
+    body: never;
   };
 }

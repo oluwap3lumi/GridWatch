@@ -101,3 +101,89 @@ Dates accept ISO dates/timestamps, year-first slash dates, numeric day/month dat
 and abbreviated month names. Ambiguous numeric dates require an explicit
 day-first/month-first convention. Errors and native-library warnings never expose
 source values or native exception text in logs.
+
+## Slice 3: API and durable import lifecycle
+
+`make up` now starts an `import-worker` alongside PostGIS, API, and web. The API
+and worker share the private `upload_staging` Docker volume. Upload limits and TTL
+come from `.env.example`; Compose passes them to both processes. No extra service
+or package is required. This slice exposes the API; the Upload page and imported
+asset inference follow in slices 5 and 4 respectively.
+
+All paths below have prefix `/api/v1`. Upload, validation, commit, and rollback
+return **202** with a batch detail. Poll `GET /imports/{id}` until its latest
+`job.status` becomes `completed` or `failed`. The initial upload response can have
+null format/CRS and no columns while inspection is queued. After inspection it
+contains detected columns, mapping suggestions, feature count, CRS, global warning
+codes, and the first 20 rows. Validation supplies EPSG:4326 geometries and row
+errors/warnings for that preview, plus all row errors in `errors`.
+
+| Endpoint | Request / result |
+| --- | --- |
+| `POST /imports` | Multipart `file` and `layer_type=transformer`, `pole`, or `feeder_line` |
+| `POST /imports/{id}/validate` | Optional JSON `column_mapping`, `source_crs`, `date_format` |
+| `POST /imports/{id}/commit` | JSON `valid_rows_only` (default false), `rescore` (default false), `accept_scoring_defaults` (reserved for slice 4) |
+| `POST /imports/{id}/rollback` | No body; undo the batch or return a conflict |
+| `GET /imports` | History with `limit` 1–100 (default 20) and `offset` |
+| `GET /imports/{id}` | Counts, status, preview, errors, extent, latest job and progress |
+| `GET /imports/{id}/errors.csv` | Download `row_number,field,reason`; includes safe file-level failure codes |
+| `GET /imports/templates/{layer_type}.csv` | CSV column header template; feeder lines use WKT geometry |
+
+For example, in PowerShell use `curl.exe -F "file=@your-transformers.csv" -F
+"layer_type=transformer" http://localhost:8000/api/v1/imports`. Then use the returned
+UUID in the validation and commit paths. On Linux/macOS use `curl`. A mapping body
+such as `{"column_mapping":{"external_id":"Asset ID","latitude":"Y","longitude":"X"},
+"source_crs":"EPSG:4326","date_format":"day_first"}` overrides suggestions. The
+source CRS also applies to mapped X/Y coordinates and WKT. Missing/unparseable
+Shapefile `.prj` requires this explicit selection; GridWatch does not guess.
+
+An illustrative synthetic GeoJSON structure is:
+
+```json
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"external_id":"demo-pole"},"geometry":{"type":"Point","coordinates":[3.3,6.5]}}]}
+```
+
+Validation writes only private staging. If any rows are invalid, commit returns
+409 until the caller explicitly chooses `{"valid_rows_only":true}`. Invalid rows
+are skipped and remain in the downloadable report. A file with no valid rows
+cannot be committed. Parse/validation failures retain staging until its TTL so
+the user can correct a mapping/CRS. Failed revalidation prevents committing an
+older validated result. Commit failures preserve all existing assets and staged
+rows for diagnosis/revalidation; no partial database transaction is published.
+
+Upserts use `(asset type, external_id)` and preserve the original creator's
+`batch_id`; `last_batch_id` and revision record the most recent change. An absent
+or blank optional field preserves the existing value on re-import. It does not
+clear that value. Validation also checks date ordering against retained dates.
+External pole/feeder identifiers are resolved when parents exist, or retained
+unresolved with a warning. A later parent import resolves waiting children and
+journals those relationship changes for undo. Commits use 1,000-row upserts and
+one transaction, including the undo journal and score invalidation.
+
+Rollback removes inserted assets and restores before-images of updated assets,
+including relationship changes. It rejects known later changes/dependencies with
+409; undo dependent batches in reverse order. The worker checks again before
+writing, so a conflict arising after enqueue becomes a failed rollback job with
+`ROLLBACK_CONFLICT`. Old journal revisions are advanced when a later rollback
+restores them. Derived risk scores are invalidated by both commit and rollback.
+
+Optional rescoring is a separate durable job after import commits. Its failure
+leaves the batch imported; inspect the latest job status. Imported-asset scoring
+is implemented in slice 4; the existing strict model/corpus checks can reject it
+in this slice. No replacement model or invented asset defaults are applied here.
+
+Jobs use PostgreSQL leases and token checks before committing effects. A heartbeat
+renews leases and persists row progress. Worker restart recovers expired leases;
+an older worker that loses its token rolls its asset transaction back. The separate
+worker has a Compose healthcheck. Files and temporary database rows are removed
+after commit/rollback and by the worker's 30-second cleanup cycle after TTL expiry.
+Cleanup retries terminal-file deletion and removes UUID-named expired orphan files.
+History, safe error reports, and persistent undo before-images remain on the local
+deployment; they are not temporary staging. `make seed` refuses a database with
+import history so it cannot erase uploaded data.
+
+The HTTP body is bounded before multipart parsing, including requests without
+Content-Length; multipart headers/fields have a 64 KiB allowance above the file
+limit. Actual file bytes are independently checked against `UPLOAD_MAX_BYTES`.
+Stored paths are UUID-derived; the original basename is sanitized for history.
+Reports include canonical fields and fixed reasons rather than uploaded values.

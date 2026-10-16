@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       target: runtime
-    environment:
+    environment: &api_environment
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -35,8 +35,16 @@ services:
       OMP_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
+      UPLOAD_STAGING_DIR: /app/uploads/staging
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-26214400}
+      UPLOAD_MAX_FEATURES: ${UPLOAD_MAX_FEATURES:-100000}
+      UPLOAD_MAX_EXPANDED_BYTES: ${UPLOAD_MAX_EXPANDED_BYTES:-262144000}
+      UPLOAD_MAX_ZIP_FILES: ${UPLOAD_MAX_ZIP_FILES:-32}
+      UPLOAD_MAX_ZIP_RATIO: ${UPLOAD_MAX_ZIP_RATIO:-100}
+      UPLOAD_TTL_SECONDS: ${UPLOAD_TTL_SECONDS:-86400}
     volumes:
       - ./ml/artifacts:/app/ml/artifacts
+      - upload_staging:/app/uploads/staging
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
@@ -47,6 +55,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 20s
+
+  import-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: runtime
+    entrypoint: ["python", "-m", "app.services.import_worker"]
+    environment: *api_environment
+    volumes:
+      - ./ml/artifacts:/app/ml/artifacts
+      - upload_staging:/app/uploads/staging
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import pathlib,time; p=pathlib.Path('/tmp/gridwatch-import-worker'); assert p.exists() and time.time()-p.stat().st_mtime<120"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
       start_period: 20s
 
   test-db:
@@ -97,3 +125,4 @@ services:
 
 volumes:
   postgres_data:
+  upload_staging:

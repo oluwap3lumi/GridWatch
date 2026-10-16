@@ -74,3 +74,63 @@ malformed Unicode and DBF control text remain row-local and JSONB-safe.
 These are internal helpers. Upload endpoints, downloadable errors, durable jobs,
 transactional upsert/rollback, and active retention cleanup remain slice 3 work.
 End-to-end per-format PostGIS import tests are added when those routes exist.
+
+## Slice 3: Durable imports, undo, reports and retention
+
+Added versioned upload/history/validation/commit/rollback/template/report routes,
+typed OpenAPI contracts (including multipart bodies and CSV downloads), bounded
+HTTP multipart handling, a separate Compose worker with shared private staging,
+PostgreSQL job leases/progress, transactional 1,000-row upserts, undo history,
+late parent resolution, conflict checks, and automatic retention cleanup.
+No additional dependency or schema migration was needed in this slice.
+Seeding refuses private import history instead of erasing it.
+
+| Command run | Result |
+| --- | --- |
+| `make lint` | Ruff/format, strict mypy (76 sources), ESLint and TypeScript passed |
+| `make types` | Regenerated import schemas, operation bodies, binary upload and CSV response contracts |
+| `make test` | 113 backend unit passed, one Windows symlink skip; 54 real PostGIS integration passed; 25 frontend passed |
+| `make up` | PostGIS, API, web and the new import worker all healthy |
+| `make smoke` | Existing model/provenance and API smoke passed: 3,000 scored assets, unchanged bands (812 low, 1,828 medium, 90 high, 270 critical), 41 hotspots |
+| `$env:GRIDWATCH_IMPORT_SMOKE_URL='http://localhost:18001'; uv run --project backend python scripts/import_smoke.py` | Separate API/worker over HTTP: inspected 1, validated 1, inserted 1, rolled back 1; main demo unchanged |
+| `docker exec gridwatch-slice3-worker python -c "from pathlib import Path; assert not list(Path('/app/uploads/staging').glob('*.upload')); print('PASS committed/rolled-back raw uploads removed')"` | Passed; no raw staging files remained |
+
+The full suite covers every accepted format, projected and multipart Shapefiles,
+validation without asset writes, idempotent re-import, partial success, retained
+error CSV, upload/feature limits, TTL cleanup, abandoned leases, a lost-token
+transaction that rolls back before a replacement worker succeeds, 1,001-row
+upserts spanning two chunks, late relationship resolution and reverse undo,
+out-of-order rollback conflicts, and a database constraint failure that preserves
+the entire previous corpus. Windows' symlink test remains the platform-specific
+skip already exercised successfully on Linux in slice 2; new HTTP body-limit
+unit tests also passed in the focused Linux run.
+
+Initial focused runs caught undo geometry serialization and a missing bulk-insert
+import; both were fixed before the passing full run. The standalone smoke first
+encountered API startup in progress; its readiness wait now handles that state.
+Native exception messages and uploaded data are not written by the worker.
+
+To reproduce the separate-worker smoke after `make test`, start disposable
+containers against a fresh `test-db` (PowerShell, repo root):
+
+```powershell
+docker compose --profile test up -d --wait test-db
+docker compose --profile test run -d --name gridwatch-slice3-api -p 127.0.0.1:18001:8000 -e UPLOAD_STAGING_DIR=/app/uploads/staging -v gridwatch_slice3_staging:/app/uploads/staging test-api sh start.sh
+docker compose --profile test run -d --name gridwatch-slice3-worker -e UPLOAD_STAGING_DIR=/app/uploads/staging -v gridwatch_slice3_staging:/app/uploads/staging test-api python -m app.services.import_worker
+$env:GRIDWATCH_IMPORT_SMOKE_URL='http://localhost:18001'
+uv run --project backend python scripts/import_smoke.py
+docker rm -f gridwatch-slice3-api gridwatch-slice3-worker
+docker compose --profile test rm --stop --force test-db
+docker volume rm gridwatch_slice3_staging
+```
+
+The smoke refuses to upload to a deployment with existing assets. It creates its
+in-memory CSV from `data/generator` and leaves no sample upload in the repository.
+The named API/worker containers and their test staging volume were removed after
+verification. The regular four-service demo remains running.
+
+Imported-asset inference, the Upload UI, generator sample files/screenshots,
+hosted M8 CI, and final clean-clone verification remain in the approved later
+slices. A requested rescore already runs as a separate job and preserves a
+successful import on failure; existing strict model/corpus checks remain intact
+until slice 4 implements the inference contract.

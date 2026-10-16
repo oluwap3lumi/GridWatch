@@ -8,7 +8,7 @@ from geoalchemy2 import WKTElement
 from sqlalchemy import delete, func, insert, select, text
 from sqlalchemy.orm import Session
 
-from app.db.models import Asset, ModelRun, OutageEvent, RiskScore, WeatherObservation
+from app.db.models import Asset, ImportBatch, ModelRun, OutageEvent, RiskScore, WeatherObservation
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,8 @@ def replace_demo_data(session: Session, dataset: SyntheticDataset) -> SeedResult
     if not session.in_transaction():
         raise ValueError("Seeding requires an explicit transaction")
     session.execute(text("SELECT pg_advisory_xact_lock(5139241308840342595)"))
+    if session.scalar(select(func.count()).select_from(ImportBatch)):
+        raise ValueError("Cannot reseed a database containing private import history")
     if session.scalar(select(func.count()).select_from(ModelRun)) or session.scalar(
         select(func.count()).select_from(RiskScore)
     ):

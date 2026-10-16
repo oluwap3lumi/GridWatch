@@ -101,3 +101,26 @@ The database constrains score range and band membership; the scoring service
 assigns the matching band. Current score rows form a single atomic batch with
 the same model version, scoring timestamp, and prediction cutoff. Historical
 model runs are preserved, while prior risk batches are replaced.
+
+### M8 import lifecycle
+
+The [upload guide](uploads.md) documents accepted columns, formats, CRS selection,
+and the API. Asset identity is unique by `(type, external_id)`; uploaded
+`feeder_line` maps to internal asset type `feeder`. `batch_id` is the creator,
+`last_batch_id` is the latest mutator, and `revision` increases on every update.
+`external_pole_id`/`external_feeder_id` retain unresolved identifiers; nullable
+indexed `pole_id`/`feeder_id` reference resolved parent assets. Re-imports retain
+missing optional attributes and original creation provenance.
+
+`import_batches.row_counts` records total, valid, invalid, inserted and updated
+counts. `error_report` retains fixed errors/warnings, a file/job failure code when
+present, and the committed EPSG:4326 extent `[west,south,east,north]`.
+`import_jobs` stores operation, options, leased ownership, attempts, progress and
+completion/failure status. `import_rows` is expiring private staging and is deleted
+after commit/rollback/TTL. `import_changes` retains lossless before-images and
+expected post-change revisions so rollback can restore updates safely. Its
+asset IDs deliberately survive deletion. History and undo data stay local; TTL
+cleanup applies to staging rather than persistent imported-data history.
+
+Seeding also refuses any database containing import history. Imports and undo
+invalidate derived scores atomically, and optional rescoring runs separately.

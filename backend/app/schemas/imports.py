@@ -64,6 +64,15 @@ class ImportBatchDetail(ApiModel):
     expires_at: datetime
     preview: list[PreviewRow] = Field(default_factory=list, max_length=20)
     job: JobProgress | None = None
+    errors: list[RowIssue] = Field(default_factory=list)
+    extent: list[float] | None = None
+    error_code: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ImportHistory(ApiModel):
+    items: list[ImportBatchDetail]
+    total: int
 
 
 class ValidateImport(ApiModel):

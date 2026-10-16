@@ -147,7 +147,9 @@ M8 is adding private runtime uploads. User data stays on the deployment and must
 never be committed, included in screenshots, or logged as row contents/coordinates.
 **Deployers are responsible for access control: GridWatch has no real authentication.**
 Staged uploads are subject to configurable retention and deletion after commit,
-rollback, or expiry; these lifecycle operations are being implemented in M8.
+rollback, or expiry by the M8 import worker. The upload API is available; the
+Upload page and imported-asset scoring are still being implemented. See
+[upload formats and API workflow](docs/uploads.md).
 If a port is occupied, change `API_PORT`/`WEB_PORT` in `.env` and rerun `make up`.
 Export matching shell values when running `make smoke` with nondefault ports.
 If image downloads fail with a registry/network error, retry after connectivity
@@ -163,7 +165,8 @@ extensions, risk thresholds, and licensing. Verification commands and results
 are recorded in the milestone notes; screenshots capture the running synthetic
 demo. AI assistance does not validate the model for real infrastructure use.
 M8 continues in reviewed slices: AI assistance covers private-upload foundations,
-format parsing, CRS handling, and adversarial validation tests. Runtime user data
+format parsing, CRS handling, durable jobs, transactional upserts/undo, retention,
+and adversarial validation tests. Runtime user data
 is kept out of committed fixtures, documentation, screenshots, and logs.
 
 ## Documentation and licence

@@ -43,6 +43,8 @@ def render_type(value: object) -> str:
         if key in schema:
             return separator.join(f"({render_type(item)})" for item in sequence(schema[key]))
     kind = schema.get("type")
+    if kind == "string" and schema.get("format") == "binary":
+        return "Blob"
     if kind in ("number", "integer"):
         return "number"
     if kind in ("string", "boolean", "null"):
@@ -96,9 +98,18 @@ def generate_types(document: dict[str, object]) -> str:
             success = [value for status, value in responses.items() if status.startswith("2")]
             if len(success) != 1:
                 raise ValueError("Each operation must define one successful JSON response")
-            response_schema = mapping(mapping(mapping(success[0])["content"])["application/json"])[
-                "schema"
-            ]
+            content = mapping(mapping(success[0])["content"])
+            media = "application/json" if "application/json" in content else "text/csv"
+            response_schema = mapping(content[media])["schema"]
+            request_body = "never"
+            if "requestBody" in operation:
+                request_content = mapping(mapping(operation["requestBody"])["content"])
+                request_media = (
+                    "application/json"
+                    if "application/json" in request_content
+                    else "multipart/form-data"
+                )
+                request_body = render_type(mapping(request_content[request_media])["schema"])
             lines.extend(
                 [
                     f"  {json.dumps(method.upper() + ' ' + path)}: {{",
@@ -117,6 +128,7 @@ def generate_types(document: dict[str, object]) -> str:
                     )
                     + ";",
                     f"    response: {render_type(response_schema)};",
+                    f"    body: {request_body};",
                     "  };",
                 ]
             )
