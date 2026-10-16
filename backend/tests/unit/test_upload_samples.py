@@ -1,21 +1,27 @@
 """Committed synthetic examples are reproducible and exercise the real parsers."""
 
+import io
+import zipfile
 from pathlib import Path
 
 import pytest
-from data.generator.samples import sample_files
+from data.generator import samples
 
 from app.core.uploads import UploadSettings
 from app.schemas.imports import ValidateImport
 from app.services.import_parsing import parse_upload
 from app.services.import_validation import validate_upload
 
+sample_files = samples.sample_files
+
 
 def test_sample_bytes_match_generator() -> None:
-    root = Path(__file__).resolve().parents[3] / "data" / "samples"
+    root = Path(samples.__file__).resolve().parents[1] / "samples"
     first, second = sample_files(), sample_files()
     assert first == second
     assert all((root / name).read_bytes() == data for name, data in first.items())
+    with zipfile.ZipFile(io.BytesIO(first["poles_shapefile.zip"])) as archive:
+        assert all(entry.create_system == 3 for entry in archive.infolist())
 
 
 @pytest.mark.parametrize(

@@ -92,6 +92,7 @@ def projected_shapefile(poles: tuple[AssetRecord, ...]) -> bytes:
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in sorted(members.items()):
             entry = zipfile.ZipInfo(name, date_time=(2025, 12, 31, 0, 0, 0))
+            entry.create_system = 3  # Stable Unix metadata even when generated on Windows.
             entry.external_attr = 0o100644 << 16
             archive.writestr(entry, data)
     return output.getvalue()

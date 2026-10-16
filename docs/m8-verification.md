@@ -298,3 +298,11 @@ scrolling. The screenshot containers, staging volume and task browser were remov
 Initial lint runs caught line length/formatting in the new acceptance helper;
 both were fixed before the passing run. The clean-clone receipt and hosted CI
 results will be recorded after committed-source verification finishes.
+
+The first hosted run (`6270b69`) correctly rejected the Shapefile ZIP regeneration:
+Python's ZIP creator-system default differs on Windows and Linux. The generator
+now explicitly writes Unix creator metadata as well as fixed timestamps/modes.
+The regenerated archive passes `--check` on both systems; all six sample unit
+tests pass on Windows and Linux, and the real PostGIS six-batch sample flow passes
+again with the corrected ZIP. The old clean-clone rehearsal was stopped and its
+own containers/volumes removed so a fresh run can verify the corrected commit.
