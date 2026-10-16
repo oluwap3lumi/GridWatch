@@ -162,6 +162,9 @@ approvals and explicit decisions on dependencies, prediction horizon, schema
 extensions, risk thresholds, and licensing. Verification commands and results
 are recorded in the milestone notes; screenshots capture the running synthetic
 demo. AI assistance does not validate the model for real infrastructure use.
+M8 continues in reviewed slices: AI assistance covers private-upload foundations,
+format parsing, CRS handling, and adversarial validation tests. Runtime user data
+is kept out of committed fixtures, documentation, screenshots, and logs.
 
 ## Documentation and licence
 

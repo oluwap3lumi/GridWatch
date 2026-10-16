@@ -41,3 +41,36 @@ imported-asset scoring, and the Upload page remain in their approved later slice
 No new dependency was needed for slice 1; the four approved parser/upload
 dependencies will be installed when their implementation begins. Hosted M8 CI and
 clean-clone acceptance will be recorded as those checks run.
+
+## Slice 2: Parsing, mapping, CRS, and validation
+
+Added the four approved direct dependencies and locked their resolved versions:
+python-multipart 0.0.32, PyShp 3.1.6, pyproj 3.8.0, Shapely 2.2.0. Linux wheels
+work in the existing Python slim test image without additional system packages.
+No Fiona, pyogrio, GeoPandas, or frontend dependency was added.
+
+Pure helpers read CSV, GeoJSON/JSON arrays, and one-layer zipped Shapefiles;
+suggest/validate mappings; reproject to EPSG:4326; and return valid/invalid rows
+with fixed error reasons and reference warnings. They preserve missing optional
+attributes and leading-zero IDs and reject every copy of a duplicated ID.
+Optional whitespace-only cells stay missing. Dates require a convention when
+ambiguous. Unknown references warn without invalidating otherwise valid rows.
+
+ZIP inspection is in-memory only, validates all entry paths/budgets, and reads
+only allowlisted components. Shapefile binary sizes/counts are checked before
+native allocations. `.prj` uses `CRS.from_wkt`; missing/unparseable CRS needs user
+selection. DBF encoding follows UTF-8, `.cpg`, latin-1. Null shapes and multipart
+lines are handled explicitly. Native warning/exception text is suppressed;
+malformed Unicode and DBF control text remain row-local and JSONB-safe.
+
+| Command run | Result |
+| --- | --- |
+| `uv run --project backend pytest -c backend/pyproject.toml backend/tests/unit/test_import_parsing.py -x -q --tb=short` | 47 parser/validation tests passed |
+| `docker compose --profile test run --rm --no-deps --build test-api pytest tests/unit/test_import_parsing.py tests/unit/test_upload_foundations.py -q --tb=short` | 52 passed on Linux, including the filesystem symlink test |
+| `make lint` | Ruff/format, strict mypy (70 sources), ESLint, and TypeScript passed |
+| `make types` | Regenerated contracts; byte hash unchanged, since this slice adds no HTTP endpoints |
+| `make test` | Final run: 111 backend unit passed with one Windows symlink skip; 40 real PostGIS integration and 25 frontend tests passed; skipped coverage passed in the separate Linux run |
+
+These are internal helpers. Upload endpoints, downloadable errors, durable jobs,
+transactional upsert/rollback, and active retention cleanup remain slice 3 work.
+End-to-end per-format PostGIS import tests are added when those routes exist.

@@ -1,5 +1,21 @@
 # Data dictionary
 
+M8 upload column mapping (slice 2):
+
+| Canonical source field | Interpretation |
+| --- | --- |
+| `external_id` | Required stable string ID; leading zeros preserved; unique within layer type |
+| `longitude`, `latitude` | X/Y coordinates in the selected source CRS; EPSG:4326 by default for coordinate tables |
+| `geometry` | Optional WKT; GeoJSON/Shapefile geometry takes precedence |
+| `capacity_kva`, `load_factor`, `vegetation_index` | Optional finite values with documented ranges in [uploads](uploads.md) |
+| `install_date`, `last_maintenance_date` | Optional dates; ambiguous numeric dates require a convention |
+| `pole_id`, `feeder_id` | Source external references, retained as `external_pole_id`/`external_feeder_id`; unresolved references warn |
+| `material` | Optional text of at most 30 characters |
+
+Geometry layers are transformer/pole Points and feeder LineString/MultiLineString.
+Output geometry is two-dimensional EPSG:4326. Null/invalid shapes are row errors;
+no geometry repair or missing-attribute imputation occurs during validation.
+
 M8 slice 1 adds private runtime import foundations (see [uploads](uploads.md)):
 
 | Table | Purpose and important fields |

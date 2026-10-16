@@ -17,6 +17,10 @@ dependencies = [
     "uvicorn>=0.34,<1",
     "xgboost>=3,<4; sys_platform != 'linux'",
     "xgboost-cpu>=3,<4; sys_platform == 'linux'",
+    "python-multipart>=0.0.20,<1",
+    "pyshp>=2.3,<4",
+    "pyproj>=3.7,<4",
+    "shapely>=2,<3",
 ]
 
 [dependency-groups]
@@ -34,7 +38,7 @@ python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "shap.*", "joblib.*"]
+module = ["sklearn.*", "shap.*", "joblib.*", "shapely.*", "shapefile"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
